@@ -47,7 +47,7 @@ class UserService {
     } else {
       // Check if this auth provider is already linked
       const providerExists = user.authProviders?.some(
-        (provider) => provider.type === authProvider
+        (provider) => provider.type === authProvider,
       );
 
       // If new provider, add it to the authProviders array
@@ -55,7 +55,7 @@ class UserService {
         await this.addAuthProvider(
           user.userId,
           authProvider,
-          additionalData.cognitoId || email
+          additionalData.cognitoId || email,
         );
       }
 
@@ -71,7 +71,7 @@ class UserService {
           locale: additionalData.locale,
           lastLogin: new Date().toISOString(),
         },
-        authProvider
+        authProvider,
       );
       // Fetch updated user
       user = await dynamoDBService.getUserById(user.userId);

@@ -1,9 +1,9 @@
 /**
  * Sonner Toast Usage Examples
- * 
+ *
  * Import the hook in any component:
  * import { useToast } from "@/hooks/useToast";
- * 
+ *
  * Or import directly from sonner:
  * import { toast } from "sonner";
  */
@@ -36,8 +36,8 @@ export function ExampleComponent() {
 
   // Promise toast - shows loading, then success or error
   const handlePromise = async () => {
-    const myPromise = new Promise((resolve) => 
-      setTimeout(() => resolve({ name: "Sonner" }), 2000)
+    const myPromise = new Promise((resolve) =>
+      setTimeout(() => resolve({ name: "Sonner" }), 2000),
     );
 
     toast.promise(myPromise, {
@@ -84,14 +84,11 @@ export function DirectToastExample() {
     });
 
     // Promise toast
-    toast.promise(
-      fetch("/api/data"),
-      {
-        loading: "Loading data...",
-        success: "Data loaded",
-        error: "Failed to load",
-      }
-    );
+    toast.promise(fetch("/api/data"), {
+      loading: "Loading data...",
+      success: "Data loaded",
+      error: "Failed to load",
+    });
 
     // Dismissible
     toast("Event created", {
@@ -113,7 +110,7 @@ export function FormExample() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const response = await fetch("/api/submit", {
         method: "POST",
@@ -140,7 +137,7 @@ export function AsyncExample() {
   const deleteItem = async (id: string) => {
     const deletePromise = fetch(`/api/items/${id}`, {
       method: "DELETE",
-    }).then(res => res.json());
+    }).then((res) => res.json());
 
     toast.promise(deletePromise, {
       loading: "Deleting item...",

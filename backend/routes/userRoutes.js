@@ -14,7 +14,7 @@ router.get("/list", async (req, res) => {
     const result = await docClient.send(
       new ScanCommand({
         TableName: usersTable,
-      })
+      }),
     );
 
     if (!result.Items || result.Items.length === 0) {
