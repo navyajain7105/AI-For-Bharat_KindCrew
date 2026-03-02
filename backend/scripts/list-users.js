@@ -4,6 +4,16 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+/**
+ * List all users from DynamoDB
+ * 
+ * ⚠️ DEVELOPMENT/ADMIN TOOL ONLY
+ * This script displays all users with their auth providers and login history.
+ * Remove or restrict access in production.
+ * 
+ * Usage: node scripts/list-users.js
+ */
+
 async function listUsers() {
   try {
     console.log(`🔍 Scanning table "${usersTable}" for all users...`);
@@ -40,6 +50,17 @@ async function listUsers() {
       console.log(`   role: ${user.role || "N/A"}`);
       console.log(`   status: ${user.status || "N/A"}`);
       console.log(`   emailVerified: ${user.emailVerified || false}`);
+      
+      // Display auth providers
+      if (user.authProviders && user.authProviders.length > 0) {
+        console.log(`   🔐 Auth Providers (${user.authProviders.length}):`);
+        user.authProviders.forEach((provider, i) => {
+          console.log(`      ${i + 1}. ${provider.type} (linked: ${provider.linkedAt})`);
+        });
+      } else {
+        console.log(`   🔐 Auth Providers: None`);
+      }
+      
       console.log(`   createdAt: ${user.createdAt || "N/A"}`);
       console.log(`   lastLogin: ${user.lastLogin || "N/A"}`);
       console.log(

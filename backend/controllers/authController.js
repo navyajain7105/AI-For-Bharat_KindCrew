@@ -95,12 +95,13 @@ export const handleCallback = async (req, res) => {
 
       // Create or update user in database
       console.log("\n💾 Step 3: Creating/updating user in database...");
+      console.log(`📍 Login method: ${cognitoUser.identityProvider}`);
       let user;
       try {
         user = await userService.findOrCreateUser(
           cognitoUser.email,
           cognitoUser.name,
-          "cognito",
+          cognitoUser.identityProvider, // "cognito" or "google"
           {
             profileImage: cognitoUser.profileImage,
             cognitoId: cognitoUser.cognitoId,

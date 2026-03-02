@@ -38,13 +38,27 @@ class UserService {
 
   // Find or create user (for OAuth login) - also records login
   async findOrCreateUser(email, name, authProvider, additionalData = {}) {
-    // Try to find existing user
+    // Try to find existing user by email
     let user = await dynamoDBService.getUserByEmail(email);
 
     if (!user) {
       // Create new user if doesn't exist
       user = await this.createUser(email, name, authProvider, additionalData);
     } else {
+      // Check if this auth provider is already linked
+      const providerExists = user.authProviders?.some(
+        (provider) => provider.type === authProvider
+      );
+
+      // If new provider, add it to the authProviders array
+      if (!providerExists) {
+        await this.addAuthProvider(
+          user.userId,
+          authProvider,
+          additionalData.cognitoId || email
+        );
+      }
+
       // Update existing user with latest info and record login
       await dynamoDBService.updateUserOnLogin(
         user.userId,
@@ -57,7 +71,7 @@ class UserService {
           locale: additionalData.locale,
           lastLogin: new Date().toISOString(),
         },
-        authProvider,
+        authProvider
       );
       // Fetch updated user
       user = await dynamoDBService.getUserById(user.userId);
