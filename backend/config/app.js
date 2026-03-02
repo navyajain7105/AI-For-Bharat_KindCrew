@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
+import session from "express-session";
 import errorHandler from "../middleware/errorHandler.js";
+import authRoutes from "../routes/authRoutes.js";
 
 const app = express();
 
@@ -15,6 +17,22 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session middleware
+app.use(
+  session({
+    secret:
+      process.env.SESSION_SECRET ||
+      "kindcrew-session-secret-change-in-production",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  }),
+);
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -40,6 +58,9 @@ app.get("/", (req, res) => {
   });
 });
 
+// Auth routes
+app.use("/api/auth", authRoutes);
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
@@ -48,7 +69,7 @@ app.use((req, res) => {
   });
 });
 
-// Error handling middleware
+// Error handler
 app.use(errorHandler);
 
 export default app;
