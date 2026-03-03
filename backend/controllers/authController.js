@@ -25,7 +25,7 @@ export const handleLogin = (req, res) => {
   } catch (error) {
     console.error("❌ Login failed:", error.message);
     res.redirect(
-      `${process.env.FRONTEND_URL || "http://localhost:3000"}/login?error=login_failed`,
+      `${process.env.FRONTEND_URL || "http://localhost:3000"}?error=login_failed`,
     );
   }
 };
@@ -51,21 +51,21 @@ export const handleCallback = async (req, res) => {
     if (error) {
       console.error("❌ Cognito error:", error, error_description);
       return res.redirect(
-        `${process.env.FRONTEND_URL || "http://localhost:3000"}/login?error=${error}`,
+        `${process.env.FRONTEND_URL || "http://localhost:3000"}?error=${error}`,
       );
     }
 
     if (!state || state !== req.session.oauthState) {
       console.error("❌ State mismatch - possible CSRF attack");
       return res.redirect(
-        `${process.env.FRONTEND_URL || "http://localhost:3000"}/login?error=invalid_state`,
+        `${process.env.FRONTEND_URL || "http://localhost:3000"}?error=invalid_state`,
       );
     }
 
     if (!code) {
       console.error("❌ No auth code received from Cognito");
       return res.redirect(
-        `${process.env.FRONTEND_URL || "http://localhost:3000"}/login?error=missing_code`,
+        `${process.env.FRONTEND_URL || "http://localhost:3000"}?error=missing_code`,
       );
     }
 
@@ -89,7 +89,7 @@ export const handleCallback = async (req, res) => {
       if (!cognitoUser) {
         console.error("❌ Failed to extract user from token");
         return res.redirect(
-          `${process.env.FRONTEND_URL || "http://localhost:3000"}/login?error=invalid_token`,
+          `${process.env.FRONTEND_URL || "http://localhost:3000"}?error=invalid_token`,
         );
       }
 
@@ -169,7 +169,7 @@ export const handleCallback = async (req, res) => {
     console.error("Full error:", error);
     console.log("========== CALLBACK END (ERROR) ==========\n");
     res.redirect(
-      `${process.env.FRONTEND_URL || "http://localhost:3000"}/login?error=auth_failed`,
+      `${process.env.FRONTEND_URL || "http://localhost:3000"}?error=auth_failed`,
     );
   }
 };
@@ -199,7 +199,7 @@ export const handleLogout = (req, res) => {
     const cognitoLogoutUrl =
       `${cognitoDomain}/logout?` +
       `client_id=${clientId}&` +
-      `logout_uri=${encodeURIComponent(logoutUri + "/login")}`;
+      `logout_uri=${encodeURIComponent(logoutUri)}`;
 
     console.log("✅ Session destroyed, redirecting to Cognito logout");
 
@@ -208,7 +208,7 @@ export const handleLogout = (req, res) => {
   } catch (error) {
     console.error("❌ Logout failed:", error.message);
     res.redirect(
-      `${process.env.FRONTEND_URL || "http://localhost:3000"}/login`,
+      `${process.env.FRONTEND_URL || "http://localhost:3000"}`,
     );
   }
 };

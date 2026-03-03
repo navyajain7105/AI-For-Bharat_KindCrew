@@ -32,8 +32,8 @@ export default function DashboardPage() {
         // Remove token from URL
         router.replace("/dashboard");
       } else {
-        // Invalid token, redirect to login
-        router.replace("/login");
+        // Invalid token, redirect to root
+        router.replace("/");
       }
     }
   }, [router, setAuth]);
@@ -43,10 +43,10 @@ export default function DashboardPage() {
     initializeAuth();
   }, [initializeAuth]);
 
-  // Redirect to login if not authenticated
+  // Redirect to root if not authenticated
   useEffect(() => {
     if (authReady && !isAuthenticated()) {
-      router.replace("/login");
+      router.replace("/");
     }
   }, [authReady, isAuthenticated, router]);
 

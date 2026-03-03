@@ -102,7 +102,7 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (
       // Fallback: clear local state and redirect manually
       get().clearAuth();
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.href = "/";
     }
   },
 
