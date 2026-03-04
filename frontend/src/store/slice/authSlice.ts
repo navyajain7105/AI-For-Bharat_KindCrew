@@ -5,6 +5,8 @@ type UserInfo = {
   userId: string;
   email: string;
   name: string;
+  givenName?: string | null;
+  familyName?: string | null;
   profileImage?: string | null;
   role?: string;
 };
@@ -51,7 +53,13 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (
     }),
 
   initializeAuth: async () => {
-    const token = get().token;
+    const currentState = get();
+    const token = currentState.token;
+
+    // Skip if already authenticated with valid user info
+    if (currentState.authReady && currentState.userInfo && token) {
+      return;
+    }
 
     if (!token) {
       set({ authReady: true, userInfo: null, loading: false, error: null });

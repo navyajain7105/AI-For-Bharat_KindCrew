@@ -3,6 +3,8 @@ import cors from "cors";
 import session from "express-session";
 import errorHandler from "../middleware/errorHandler.js";
 import authRoutes from "../routes/authRoutes.js";
+import creatorProfileRoutes from "../routes/creatorProfileRoutes.js";
+import { getAllUsersAndProfiles } from "../controllers/creatorProfileController.js";
 
 const app = express();
 
@@ -58,8 +60,14 @@ app.get("/", (req, res) => {
   });
 });
 
+// Test route alias to list all users and profiles (disabled in production by controller)
+app.get("/api/test/all-data", getAllUsersAndProfiles);
+
 // Auth routes
 app.use("/api/auth", authRoutes);
+
+// Creator Profile routes
+app.use("/api", creatorProfileRoutes);
 
 // 404 handler
 app.use((req, res) => {

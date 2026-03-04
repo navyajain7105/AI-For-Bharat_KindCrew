@@ -36,5 +36,6 @@ const docClient = DynamoDBDocumentClient.from(client, {
 });
 
 export const usersTable = process.env.DYNAMODB_USERS_TABLE || "KindCrew-Users";
+export const creatorProfilesTable = process.env.DYNAMODB_CREATOR_PROFILES_TABLE || "KindCrew-CreatorProfiles";
 
 export default docClient;

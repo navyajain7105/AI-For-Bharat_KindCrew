@@ -27,6 +27,8 @@ export function extractUserFromToken(token: string): {
   userId: string;
   email: string;
   name: string;
+  givenName?: string | null;
+  familyName?: string | null;
 } | null {
   const decoded = decodeJWT(token);
   if (!decoded) return null;
@@ -35,5 +37,7 @@ export function extractUserFromToken(token: string): {
     userId: decoded.userId || "",
     email: decoded.email || "",
     name: decoded.name || decoded.email || "User",
+    givenName: decoded.givenName || null,
+    familyName: decoded.familyName || null,
   };
 }

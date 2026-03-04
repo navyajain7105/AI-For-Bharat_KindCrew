@@ -1,37 +1,46 @@
 import dynamoDBService from "../services/dynamodb.service.js";
+import User from "../models/User.js";
 
 /**
  * User Service
- * Handles user operations with KindCrew-Users table
+ * Business logic layer for user operations
+ * Handles user creation, authentication, and profile management
+ * Follows MVC architecture pattern
  */
 
 class UserService {
   // Create new user (during signup/OAuth)
   async createUser(email, name, authProvider, additionalData = {}) {
-    const userData = {
+    const { v4: uuidv4 } = await import("uuid");
+
+    // Validate user data
+    const validation = User.validate({
       email,
       name,
-      profileImage: additionalData.profileImage || null,
-      givenName: additionalData.givenName || null,
-      familyName: additionalData.familyName || null,
-      emailVerified: additionalData.emailVerified || false,
-      locale: additionalData.locale || null,
-      authProviders: [
-        {
-          type: authProvider, // "cognito"
-          providerId: additionalData.cognitoId || email,
-          linkedAt: new Date().toISOString(),
-        },
-      ],
       role: "user",
       status: "active",
-      loginHistory: [
-        {
-          timestamp: new Date().toISOString(),
-          loginMethod: authProvider,
-        },
-      ],
-    };
+    });
+
+    if (!validation.valid) {
+      throw new Error(`Validation failed: ${validation.errors.join(", ")}`);
+    }
+
+    // Create user instance using model
+    const authProviders = [
+      {
+        type: authProvider,
+        providerId: additionalData.cognitoId || email,
+        linkedAt: new Date().toISOString(),
+      },
+    ];
+
+    const userData = User.create(uuidv4(), email, name, authProviders, {
+      givenName: additionalData.givenName,
+      familyName: additionalData.familyName,
+      profileImage: additionalData.profileImage,
+      emailVerified: additionalData.emailVerified,
+      locale: additionalData.locale,
+    });
 
     return await dynamoDBService.createUser(userData);
   }

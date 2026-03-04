@@ -100,12 +100,24 @@ export const getCognitoUser = async (idToken) => {
 /**
  * Generate custom JWT token for API
  */
-export const generateToken = (userId, email) => {
+export const generateToken = (userId, email, name = null, givenName = null, familyName = null) => {
   return jwt.sign(
-    { userId, email, iat: Math.floor(Date.now() / 1000) },
+    { userId, email, name, givenName, familyName, iat: Math.floor(Date.now() / 1000) },
     JWT_SECRET,
     { expiresIn: "7d" },
   );
+};
+
+/**
+ * Verify custom API JWT token
+ */
+export const verifyToken = (token) => {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    console.error("❌ Token verification failed:", error.message);
+    return null;
+  }
 };
 
 /**
