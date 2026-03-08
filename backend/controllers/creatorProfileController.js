@@ -40,6 +40,17 @@ export const createProfile = async (req, res) => {
       });
     }
 
+    if (
+      !profileData.targetAudience ||
+      typeof profileData.targetAudience !== "string" ||
+      !profileData.targetAudience.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "targetAudience is required",
+      });
+    }
+
     const profile = await creatorProfileService.createProfile(
       userId,
       profileData,
@@ -167,6 +178,17 @@ export const updateProfile = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: "Update data is required",
+      });
+    }
+
+    if (
+      !updateData.targetAudience ||
+      typeof updateData.targetAudience !== "string" ||
+      !updateData.targetAudience.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "targetAudience is required",
       });
     }
 
