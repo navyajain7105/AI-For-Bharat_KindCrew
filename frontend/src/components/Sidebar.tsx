@@ -33,6 +33,7 @@ export default function Sidebar({
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: FiHome },
+    { name: "Planning", href: "/dashboard/planning", icon: FiEdit },
     { name: "Profile", href: "/profile", icon: FiUser },
     { name: "Content", href: "/content", icon: FiEdit },
     { name: "Analytics", href: "/analytics", icon: FiBarChart2 },

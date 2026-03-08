@@ -8,6 +8,7 @@ import {
 import docClient, {
   usersTable,
   creatorProfilesTable,
+  publishingSchedulesTable,
 } from "../config/dynamodb.js";
 import { v4 as uuidv4 } from "uuid";
 
@@ -412,6 +413,106 @@ class DynamoDBService {
     );
 
     return result.Items || [];
+  }
+
+  // ============ PUBLISHING SCHEDULE METHODS ============
+
+  /**
+   * Create a new publishing schedule record
+   * @param {Object} scheduleData
+   * @returns {Promise<Object>} Created schedule
+   */
+  async createPublishingSchedule(scheduleData) {
+    const putCommand = new PutCommand({
+      TableName: publishingSchedulesTable,
+      Item: scheduleData,
+    });
+
+    await docClient.send(putCommand);
+    return scheduleData;
+  }
+
+  /**
+   * Retrieve a schedule by its id
+   * @param {string} scheduleId
+   * @returns {Promise<Object|null>}
+   */
+  async getPublishingScheduleById(scheduleId) {
+    const result = await docClient.send(
+      new GetCommand({
+        TableName: publishingSchedulesTable,
+        Key: { scheduleId },
+      }),
+    );
+    return result.Item || null;
+  }
+
+  /**
+   * List schedules for a given user
+   * @param {string} userId
+   * @returns {Promise<Array>}
+   */
+  async getPublishingSchedulesByUserId(userId) {
+    try {
+      const result = await docClient.send(
+        new QueryCommand({
+          TableName: publishingSchedulesTable,
+          IndexName: "UserIdIndex", // assumes a GSI on userId
+          KeyConditionExpression: "userId = :uid",
+          ExpressionAttributeValues: {
+            ":uid": userId,
+          },
+        }),
+      );
+      return result.Items || [];
+    } catch (err) {
+      console.warn(
+        "⚠️  Query by UserIdIndex failed, falling back to full scan (index might be missing)",
+        err.name || err.code,
+        err.message,
+      );
+      // fallback: scan and filter manually
+      const all = await this.scanAllItems(publishingSchedulesTable);
+      return all.filter((item) => item.userId === userId);
+    }
+  }
+
+  /**
+   * Update a publishing schedule record
+   * @param {string} scheduleId
+   * @param {Object} updates
+   * @returns {Promise<Object>} Updated schedule
+   */
+  async updatePublishingSchedule(scheduleId, updates) {
+    const updateExpression = [];
+    const expressionAttributeValues = {};
+    const expressionAttributeNames = {};
+
+    Object.keys(updates).forEach((key) => {
+      if (key !== "scheduleId") {
+        const placeholder = `#${key}`;
+        updateExpression.push(`${placeholder} = :${key}`);
+        expressionAttributeNames[placeholder] = key;
+        expressionAttributeValues[`:${key}`] = updates[key];
+      }
+    });
+
+    updateExpression.push("#updatedAt = :updatedAt");
+    expressionAttributeNames["#updatedAt"] = "updatedAt";
+    expressionAttributeValues[":updatedAt"] = new Date().toISOString();
+
+    const result = await docClient.send(
+      new UpdateCommand({
+        TableName: publishingSchedulesTable,
+        Key: { scheduleId },
+        UpdateExpression: `SET ${updateExpression.join(", ")}`,
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: expressionAttributeValues,
+        ReturnValues: "ALL_NEW",
+      }),
+    );
+
+    return result.Attributes;
   }
 
   async getAllCreatorProfiles(limit = null) {

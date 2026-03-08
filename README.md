@@ -81,7 +81,7 @@ AI-For-Bharat_KindCrew/
 3. **Setup Frontend**
    ```bash
    cd frontend
-   npm install
+   npm install    # ensures new packages including react-calendar are installed
    npm run dev
    ```
    Frontend runs on: http://localhost:3000
@@ -102,7 +102,15 @@ const { data } = await apiClient.post("/api/endpoint", { key: "value" });
 
 ### Configuration
 
-Frontend `.env.local`:
+Be **very careful** with the frontend API URL. If `NEXT_PUBLIC_API_URL` is missing or points to the frontend origin (e.g. `http://localhost:3000`), all calls in `src/lib/api/*` will hit the Next.js server instead of the Express backend and you’ll see
+
+```
+Requested resource not found
+```
+
+errors on the planning page or anywhere else.
+
+Frontend `.env.local` (must point at backend):
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000
@@ -114,6 +122,7 @@ Backend `.env`:
 PORT=5000
 NODE_ENV=development
 ```
+
 
 ## 📚 Documentation
 
@@ -144,6 +153,11 @@ npm start      # Start production server
 | ------ | --------- | --------------- |
 | GET    | `/`       | Welcome message |
 | GET    | `/health` | Health check    |
+| POST   | `/api/publishing/schedule` | Schedule content for posting |
+| GET    | `/api/publishing/scheduled` | List user's scheduled posts |
+| PUT    | `/api/publishing/:id` | Update a scheduled post |
+| POST   | `/api/publishing/:id/post` | Trigger immediate posting (stub) |
+
 
 ## 🔐 Environment Variables
 
@@ -151,6 +165,14 @@ npm start      # Start production server
 
 - `PORT` - Server port (default: 5000)
 - `NODE_ENV` - Environment (development/production)
+- `DYNAMODB_USERS_TABLE` - (optional) users table name
+- `DYNAMODB_PUBLISHING_TABLE` - (optional) schedules table name
+
+### Google Calendar Integration (optional)
+
+- `GOOGLE_CLIENT_ID` – OAuth client ID
+- `GOOGLE_CLIENT_SECRET` – OAuth client secret
+- `GOOGLE_REDIRECT_URI` – Callback URI used during auth
 
 ### Frontend (.env.local)
 

@@ -39,4 +39,8 @@ export const usersTable = process.env.DYNAMODB_USERS_TABLE || "KindCrew-Users";
 export const creatorProfilesTable =
   process.env.DYNAMODB_CREATOR_PROFILES_TABLE || "KindCrew-CreatorProfiles";
 
+// Table for storing publishing schedules (phase 3 & 4)
+export const publishingSchedulesTable =
+  process.env.DYNAMODB_PUBLISHING_TABLE || "KindCrew-PublishingSchedules";
+
 export default docClient;

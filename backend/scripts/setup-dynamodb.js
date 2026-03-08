@@ -16,143 +16,84 @@ const client = new DynamoDBClient({
   },
 });
 
-const tableName = process.env.DYNAMODB_USERS_TABLE || "KindCrew-Users";
+const usersTableName = process.env.DYNAMODB_USERS_TABLE || "KindCrew-Users";
+const publishingTableName =
+  process.env.DYNAMODB_PUBLISHING_TABLE || "KindCrew-PublishingSchedules";
 
 async function setupDynamoDB() {
   try {
-    console.log(`🔍 Checking if table "${tableName}" exists...`);
-
-    // Check if table exists
-    try {
-      const describeCommand = new DescribeTableCommand({
-        TableName: tableName,
-      });
-      const tableInfo = await client.send(describeCommand);
-
-      console.log(`✅ Table "${tableName}" exists`);
-      console.log(
-        "📋 Current indexes:",
-        tableInfo.Table.GlobalSecondaryIndexes?.map((i) => i.IndexName) ||
-          "None",
-      );
-
-      // Check if EmailIndex exists
-      const hasEmailIndex = tableInfo.Table.GlobalSecondaryIndexes?.some(
-        (index) => index.IndexName === "EmailIndex",
-      );
-
-      if (hasEmailIndex) {
-        console.log("✅ EmailIndex already exists!");
-        return;
-      }
-
-      console.log("⚠️  EmailIndex is missing. Creating...");
-
-      // Check table billing mode
-      const billingMode =
-        tableInfo.Table.BillingModeSummary?.BillingMode || "PROVISIONED";
-      console.log(`📊 Table billing mode: ${billingMode}`);
-
-      const gsiConfig = {
-        IndexName: "EmailIndex",
-        KeySchema: [
-          {
-            AttributeName: "email",
-            KeyType: "HASH",
-          },
-        ],
-        Projection: {
-          ProjectionType: "ALL",
-        },
-      };
-
-      // Only add throughput for provisioned mode
-      if (billingMode === "PROVISIONED") {
-        gsiConfig.ProvisionedThroughput = {
-          ReadCapacityUnits: 5,
-          WriteCapacityUnits: 5,
-        };
-      }
-
-      // Add EmailIndex GSI
-      const updateCommand = new UpdateTableCommand({
-        TableName: tableName,
-        AttributeDefinitions: [
-          {
-            AttributeName: "email",
-            AttributeType: "S",
-          },
-        ],
-        GlobalSecondaryIndexUpdates: [
-          {
-            Create: gsiConfig,
-          },
-        ],
-      });
-
-      await client.send(updateCommand);
-      console.log("✅ EmailIndex created successfully!");
-      console.log("⏳ Index is being created (this may take 1-2 minutes)");
-      console.log(
-        "💡 You can check status in AWS Console: DynamoDB → Tables → KindCrew-Users → Indexes",
-      );
-    } catch (error) {
-      if (error.name === "ResourceNotFoundException") {
-        console.log(`⚠️  Table "${tableName}" does not exist. Creating...`);
-
-        // Create table with EmailIndex
-        const createCommand = new CreateTableCommand({
-          TableName: tableName,
-          KeySchema: [
-            {
-              AttributeName: "userId",
-              KeyType: "HASH",
-            },
-          ],
-          AttributeDefinitions: [
-            {
-              AttributeName: "userId",
-              AttributeType: "S",
-            },
-            {
-              AttributeName: "email",
-              AttributeType: "S",
-            },
-          ],
-          GlobalSecondaryIndexes: [
-            {
-              IndexName: "EmailIndex",
-              KeySchema: [
-                {
-                  AttributeName: "email",
-                  KeyType: "HASH",
-                },
-              ],
-              Projection: {
-                ProjectionType: "ALL",
-              },
-              ProvisionedThroughput: {
-                ReadCapacityUnits: 5,
-                WriteCapacityUnits: 5,
-              },
-            },
-          ],
-          BillingMode: "PROVISIONED",
-          ProvisionedThroughput: {
-            ReadCapacityUnits: 5,
-            WriteCapacityUnits: 5,
-          },
+    // helper to ensure a table with optional GSIs
+    async function ensureTable(name, keySchema, attrDefs, gsis = []) {
+      try {
+        const describeCommand = new DescribeTableCommand({
+          TableName: name,
         });
-
-        await client.send(createCommand);
-        console.log(
-          `✅ Table "${tableName}" created successfully with EmailIndex!`,
-        );
-        console.log("⏳ Table is being created (this may take 1-2 minutes)");
-      } else {
-        throw error;
+        const info = await client.send(describeCommand);
+        console.log(`✅ Table "${name}" exists`);
+        return info;
+      } catch (err) {
+        if (err.name === "ResourceNotFoundException") {
+          console.log(`⚠️  Table "${name}" does not exist. Creating...`);
+          const createCommand = new CreateTableCommand({
+            TableName: name,
+            KeySchema: keySchema,
+            AttributeDefinitions: attrDefs,
+            BillingMode: "PROVISIONED",
+            ProvisionedThroughput: {
+              ReadCapacityUnits: 5,
+              WriteCapacityUnits: 5,
+            },
+            GlobalSecondaryIndexes: gsis,
+          });
+          await client.send(createCommand);
+          console.log(`✅ Table "${name}" created successfully!`);
+          return;
+        }
+        throw err;
       }
     }
+
+    // ensure users table
+    await ensureTable(
+      usersTableName,
+      [
+        { AttributeName: "userId", KeyType: "HASH" },
+      ],
+      [
+        { AttributeName: "userId", AttributeType: "S" },
+        { AttributeName: "email", AttributeType: "S" },
+      ],
+      [
+        {
+          IndexName: "EmailIndex",
+          KeySchema: [{ AttributeName: "email", KeyType: "HASH" }],
+          Projection: { ProjectionType: "ALL" },
+          ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
+        },
+      ],
+    );
+
+    // ensure publishing schedules table
+    await ensureTable(
+      publishingTableName,
+      [
+        { AttributeName: "scheduleId", KeyType: "HASH" },
+      ],
+      [
+        { AttributeName: "scheduleId", AttributeType: "S" },
+        { AttributeName: "userId", AttributeType: "S" },
+      ],
+      [
+        {
+          IndexName: "UserIdIndex",
+          KeySchema: [{ AttributeName: "userId", KeyType: "HASH" }],
+          Projection: { ProjectionType: "ALL" },
+          ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
+        },
+      ],
+    );
+
+    console.log("📋 Setup complete");
   } catch (error) {
     console.error("❌ Error setting up DynamoDB:");
     console.error(error.message);
@@ -164,4 +105,5 @@ async function setupDynamoDB() {
   }
 }
 
+setupDynamoDB();
 setupDynamoDB();

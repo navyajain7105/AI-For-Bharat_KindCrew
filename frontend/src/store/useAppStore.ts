@@ -5,14 +5,19 @@ import {
   CreatorProfileSlice,
   createCreatorProfileSlice,
 } from "./slice/creatorProfileSlice";
+import {
+  PublishingSlice,
+  createPublishingSlice,
+} from "./slice/publishingSlice";
 
-type AppState = AuthSlice & CreatorProfileSlice;
+type AppState = AuthSlice & CreatorProfileSlice & PublishingSlice;
 
 export const useAppStore = create<AppState>()(
   persist(
     (...args) => ({
       ...createAuthSlice(...args),
       ...createCreatorProfileSlice(...args),
+      ...createPublishingSlice(...args),
     }),
     {
       name: "kindcrew-app-storage",

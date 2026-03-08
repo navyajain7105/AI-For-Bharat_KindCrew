@@ -4,6 +4,7 @@ import session from "express-session";
 import errorHandler from "../middleware/errorHandler.js";
 import authRoutes from "../routes/authRoutes.js";
 import creatorProfileRoutes from "../routes/creatorProfileRoutes.js";
+import publishingRoutes from "../routes/publishingRoutes.js";
 import { getAllUsersAndProfiles } from "../controllers/creatorProfileController.js";
 
 const app = express();
@@ -68,6 +69,9 @@ app.use("/api/auth", authRoutes);
 
 // Creator Profile routes
 app.use("/api", creatorProfileRoutes);
+
+// Publishing routes (scheduling / posting)
+app.use("/api", publishingRoutes);
 
 // 404 handler
 app.use((req, res) => {
