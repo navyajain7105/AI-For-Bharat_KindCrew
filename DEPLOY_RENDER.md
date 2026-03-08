@@ -133,11 +133,18 @@ Your URL will be: `https://kindcrew-api-XXXXX.onrender.com`
 
 In Render dashboard → **Environment** tab:
 
-Update these with your actual URL:
+⚠️ **CRITICAL:** Update these environment variables with your actual URLs:
 
 ```bash
+# Backend callback URL
 COGNITO_REDIRECT_URI=https://YOUR-RENDER-URL.onrender.com/api/auth/callback
+
+# Frontend URL - UPDATE AFTER DEPLOYING FRONTEND TO AMPLIFY
+FRONTEND_URL=https://main.YOUR-AMPLIFY-ID.amplifyapp.com
 ```
+
+**Note:** If you haven't deployed your frontend yet, leave `FRONTEND_URL=http://localhost:3000` for now.
+You MUST update it after frontend deployment, otherwise auth redirects will go to localhost!
 
 Click **"Save Changes"** (this will restart your service)
 

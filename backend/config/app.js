@@ -12,6 +12,12 @@ import { getAllUsersAndProfiles } from "../controllers/creatorProfileController.
 
 const app = express();
 
+// Render/other managed hosts sit behind a reverse proxy.
+// Trust proxy so secure session cookies are set correctly in production.
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 // CORS configuration
 const corsOptions = {
   origin: process.env.FRONTEND_URL || "http://localhost:3000",
@@ -35,6 +41,7 @@ app.use(
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
   }),
