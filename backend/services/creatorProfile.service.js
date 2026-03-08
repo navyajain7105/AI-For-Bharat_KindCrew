@@ -20,27 +20,10 @@ const creatorProfileService = {
    */
   async createProfile(userId, profileData) {
     // Step 1: Validate data using model validation
-    console.log("📝 Creating profile for user:", userId);
-    console.log(
-      "📦 Profile data received - competitors field:",
-      profileData.competitors,
-    );
-    console.log(
-      "📦 Profile data received - competitors type:",
-      typeof profileData.competitors,
-    );
-    console.log(
-      "📦 Profile data received - competitors is array?",
-      Array.isArray(profileData.competitors),
-    );
-    console.log(
-      "📦 Profile data received - competitors length:",
-      profileData.competitors?.length,
-    );
-
     const validation = CreatorProfile.validate({
       userId,
       niche: profileData.niche,
+      targetAudience: profileData.targetAudience,
       goals: profileData.goals,
       strategy: profileData.strategy,
       platforms: profileData.platforms,
@@ -56,32 +39,9 @@ const creatorProfileService = {
     const creatorId = `creator_${uuidv4()}`;
     const profileObject = CreatorProfile.create(creatorId, userId, profileData);
 
-    console.log(
-      "✅ Profile object created - competitors field:",
-      profileObject.competitors,
-    );
-    console.log(
-      "✅ Profile object created - competitors type:",
-      typeof profileObject.competitors,
-    );
-    console.log(
-      "✅ Profile object created - competitors length:",
-      profileObject.competitors?.length,
-    );
-    console.log("✅ Full profileObject keys:", Object.keys(profileObject));
-
     // Step 3: Save to database
     try {
       const savedProfile = await dynamodb.createCreatorProfile(profileObject);
-      console.log(`Creator profile created: ${creatorId} for user: ${userId}`);
-      console.log(
-        "💾 Saved profile - competitors field:",
-        savedProfile.competitors,
-      );
-      console.log(
-        "💾 Saved profile - competitors length:",
-        savedProfile.competitors?.length,
-      );
       return savedProfile;
     } catch (error) {
       console.error("Failed to create creator profile:", error);
@@ -144,15 +104,10 @@ const creatorProfileService = {
       throw new Error("Creator ID is required");
     }
 
-    console.log("📝 [SERVICE] updateProfile called");
-    console.log("📝 [SERVICE] creatorId:", creatorId);
-    console.log("📋 [SERVICE] updateData.competitors:", updateData.competitors);
-    console.log("📋 [SERVICE] updateData.platforms:", updateData.platforms);
-    console.log("📋 [SERVICE] updateData keys:", Object.keys(updateData));
-
     // Validate if certain fields are being updated
     if (
       updateData.niche ||
+      updateData.targetAudience !== undefined ||
       updateData.goals ||
       updateData.strategy ||
       updateData.platforms ||
@@ -161,6 +116,7 @@ const creatorProfileService = {
       const validation = CreatorProfile.validate({
         userId: "temp", // Just for validation, userId won't be updated
         niche: updateData.niche,
+        targetAudience: updateData.targetAudience,
         goals: updateData.goals,
         strategy: updateData.strategy,
         platforms: updateData.platforms,
@@ -170,6 +126,11 @@ const creatorProfileService = {
       // Filter out validation errors for fields that aren't being updated
       const relevantErrors = validation.errors.filter((error) => {
         if (!updateData.niche && error.includes("niche")) return false;
+        if (
+          updateData.targetAudience === undefined &&
+          error.includes("Target audience")
+        )
+          return false;
         if (!updateData.goals && error.includes("goal")) return false;
         if (!updateData.strategy && error.includes("strategy")) return false;
         if (!updateData.platforms && error.includes("platform")) return false;
@@ -189,19 +150,10 @@ const creatorProfileService = {
         updatedAt: new Date().toISOString(),
       };
 
-      console.log(
-        "💾 [SERVICE] dataToSave.competitors:",
-        dataToSave.competitors,
-      );
-      console.log("💾 [SERVICE] dataToSave.platforms:", dataToSave.platforms);
-
       const updated = await dynamodb.updateCreatorProfile(
         creatorId,
         dataToSave,
       );
-      console.log(`Creator profile updated: ${creatorId}`);
-      console.log("✅ [SERVICE] Updated competitors:", updated.competitors);
-      console.log("✅ [SERVICE] Updated platforms:", updated.platforms);
       return updated;
     } catch (error) {
       console.error("Failed to update creator profile:", error);

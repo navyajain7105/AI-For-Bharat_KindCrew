@@ -5,6 +5,9 @@ import errorHandler from "../middleware/errorHandler.js";
 import authRoutes from "../routes/authRoutes.js";
 import creatorProfileRoutes from "../routes/creatorProfileRoutes.js";
 import publishingRoutes from "../routes/publishingRoutes.js";
+import bedrockRoutes from "../routes/bedrockRoutes.js";
+import ideationRoutes from "../routes/ideationRoutes.js";
+import contentRoutes from "../routes/contentRoutes.js";
 import { getAllUsersAndProfiles } from "../controllers/creatorProfileController.js";
 
 const app = express();
@@ -72,6 +75,15 @@ app.use("/api", creatorProfileRoutes);
 
 // Publishing routes (scheduling / posting)
 app.use("/api", publishingRoutes);
+
+// Bedrock AI routes
+app.use("/api/bedrock", bedrockRoutes);
+
+// Phase 1: Ideation & Research routes
+app.use("/api/ideation", ideationRoutes);
+
+// Phase 2: Content Generation routes
+app.use("/api/content", contentRoutes);
 
 // 404 handler
 app.use((req, res) => {
