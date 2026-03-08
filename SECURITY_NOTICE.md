@@ -102,7 +102,7 @@ Protect your AWS account with Multi-Factor Authentication:
 
 1. **Immediately deactivate the key:**
    - https://console.aws.amazon.com/iam/home#/security_credentials
-   - Find the key: `YOUR_AWS_ACCESS_KEY_ID`
+   - Find your compromised access key ID
    - Click "Make inactive"
 
 2. **Check for unauthorized usage:**
