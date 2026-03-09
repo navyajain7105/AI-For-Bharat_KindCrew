@@ -5,16 +5,16 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import {
   FiHome,
-  FiUser,
   FiEdit,
   FiCompass,
   FiBarChart2,
-  FiSettings,
+  FiCalendar,
   FiLogOut,
   FiChevronLeft,
   FiChevronRight,
   FiX,
 } from "react-icons/fi";
+import { FaHeart } from "react-icons/fa";
 
 type SidebarProps = {
   onLogout: () => void;
@@ -33,16 +33,16 @@ export default function Sidebar({
   const { userInfo } = useAuth();
 
   const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: FiHome },
-    { name: "Planning", href: "/dashboard/planning", icon: FiEdit },
+    { name: "Home", href: "/dashboard", icon: FiHome },
     { name: "Ideation", href: "/ideation", icon: FiCompass },
-    { name: "Profile", href: "/profile", icon: FiUser },
     { name: "Content", href: "/content", icon: FiEdit },
+    { name: "Planning", href: "/dashboard/planning", icon: FiCalendar },
     { name: "Analytics", href: "/analytics", icon: FiBarChart2 },
-    { name: "Settings", href: "/settings", icon: FiSettings },
   ];
 
   const isActive = (href: string) => pathname === href;
+  const profileActive =
+    pathname === "/profile" || pathname.startsWith("/profile/");
 
   return (
     <div
@@ -74,9 +74,11 @@ export default function Sidebar({
         {!collapsed && (
           <div className="flex items-center space-x-2">
             <div
-              className="w-8 h-8 rounded-lg"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-xl"
               style={{ backgroundColor: "var(--color-surface-hover)" }}
-            ></div>
+            >
+              <FaHeart />
+            </div>
             <span
               className="text-xl font-bold"
               style={{ color: "var(--color-text)" }}
@@ -84,12 +86,6 @@ export default function Sidebar({
               KindCrew
             </span>
           </div>
-        )}
-        {collapsed && (
-          <div
-            className="w-8 h-8 rounded-lg mx-auto"
-            style={{ backgroundColor: "var(--color-surface-hover)" }}
-          ></div>
         )}
 
         {/* Desktop Collapse Toggle */}
@@ -109,25 +105,48 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* User Info */}
+      {/* User Profile */}
       {!collapsed && (
-        <div
-          className="p-4 border-b"
-          style={{ borderBottomColor: "var(--color-border)" }}
+        <Link
+          href="/profile"
+          className={`block p-4 border-b rounded-none transition-all duration-200 ${!profileActive ? "hover:bg-opacity-50" : ""}`}
+          style={{
+            borderBottomColor: "var(--color-border)",
+            backgroundColor: profileActive
+              ? "var(--color-surface-hover)"
+              : "var(--color-surface)",
+            color: profileActive
+              ? "var(--color-text)"
+              : "var(--color-text-secondary)",
+          }}
+          onMouseEnter={(e) => {
+            if (!profileActive) {
+              e.currentTarget.style.backgroundColor =
+                "var(--color-surface-hover)";
+              e.currentTarget.style.opacity = "0.7";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!profileActive) {
+              e.currentTarget.style.backgroundColor = "var(--color-surface)";
+              e.currentTarget.style.opacity = "1";
+            }
+          }}
+          onClick={onCloseDrawer}
         >
           <div className="flex items-center space-x-3">
             {userInfo?.profileImage ? (
               <img
                 src={userInfo.profileImage}
                 alt={userInfo.name}
-                className="w-10 h-10 rounded-full"
+                className="w-10 h-10 rounded-full "
               />
             ) : (
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: "var(--color-surface-hover)" }}
-              >
-                <span style={{ color: "var(--color-text)" }}>
+              <div className="w-10 h-10 rounded-full bg-neutral-950 flex items-center justify-center">
+                <span
+                  style={{ color: "var(--color-text)" }}
+                  className="uppercase"
+                >
                   {userInfo?.name?.charAt(0) || "U"}
                 </span>
               </div>
@@ -149,13 +168,35 @@ export default function Sidebar({
               </p>
             </div>
           </div>
-        </div>
+        </Link>
       )}
 
       {collapsed && userInfo && (
-        <div
-          className="p-4 border-b flex justify-center"
-          style={{ borderBottomColor: "var(--color-border)" }}
+        <Link
+          href="/profile"
+          className={`p-4 border-b flex justify-center transition-colors ${
+            !profileActive ? "hover:bg-opacity-50" : ""
+          }`}
+          style={{
+            borderBottomColor: "var(--color-border)",
+            backgroundColor: profileActive
+              ? "var(--color-surface-hover)"
+              : "transparent",
+          }}
+          onMouseEnter={(e) => {
+            if (!profileActive) {
+              e.currentTarget.style.backgroundColor =
+                "var(--color-surface-hover)";
+              e.currentTarget.style.opacity = "0.7";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!profileActive) {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.opacity = "1";
+            }
+          }}
+          onClick={onCloseDrawer}
         >
           {userInfo?.profileImage ? (
             <img
@@ -173,7 +214,7 @@ export default function Sidebar({
               </span>
             </div>
           )}
-        </div>
+        </Link>
       )}
 
       {/* Navigation */}
@@ -185,7 +226,7 @@ export default function Sidebar({
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center ${collapsed ? "justify-center" : "space-x-3"} px-4 py-3 rounded-lg transition-colors`}
+              className={`flex items-center ${collapsed ? "justify-center" : "space-x-3"} px-4 py-3 rounded-lg transition-all duration-200 ${!active ? "hover:bg-opacity-50" : ""}`}
               style={{
                 backgroundColor: active
                   ? "var(--color-surface-hover)"
@@ -193,6 +234,19 @@ export default function Sidebar({
                 color: active
                   ? "var(--color-text)"
                   : "var(--color-text-secondary)",
+              }}
+              onMouseEnter={(e) => {
+                if (!active) {
+                  e.currentTarget.style.backgroundColor =
+                    "var(--color-surface-hover)";
+                  e.currentTarget.style.opacity = "0.7";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!active) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.opacity = "1";
+                }
               }}
               title={collapsed ? item.name : undefined}
               onClick={onCloseDrawer}

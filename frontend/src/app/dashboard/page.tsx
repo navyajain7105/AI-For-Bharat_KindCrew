@@ -12,7 +12,7 @@ import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import {
   FiEdit3,
   FiBarChart2,
-  FiUser,
+  FiCalendar,
   FiCompass,
   FiArrowRight,
 } from "react-icons/fi";
@@ -202,108 +202,6 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Profile Summary Card (if profile exists) */}
-      {hasProfile && creatorProfile && (
-        <div
-          className="p-4 sm:p-6 rounded-xl mb-5 sm:mb-6"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-            <h2
-              className="text-xl font-semibold"
-              style={{ color: "var(--color-text)" }}
-            >
-              Your Creator Profile
-            </h2>
-            <button
-              onClick={() => router.push("/profile")}
-              className="text-sm px-4 py-2 rounded-lg transition-colors"
-              style={{
-                backgroundColor: "var(--color-surface-hover)",
-                color: "var(--color-text)",
-              }}
-            >
-              View Details
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="min-w-0">
-              <p
-                className="text-sm mb-1"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Primary Niche
-              </p>
-              <p
-                className="font-medium capitalize break-words"
-                style={{ color: "var(--color-text)" }}
-              >
-                {creatorProfile.niche.primary}
-              </p>
-            </div>
-            <div className="min-w-0">
-              <p
-                className="text-sm mb-1"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Creator Level
-              </p>
-              <p
-                className="font-medium capitalize break-words"
-                style={{ color: "var(--color-text)" }}
-              >
-                {creatorProfile.goals.creatorLevel}
-              </p>
-            </div>
-            <div className="min-w-0">
-              <p
-                className="text-sm mb-1"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Primary Goal
-              </p>
-              <p
-                className="font-medium capitalize break-words"
-                style={{ color: "var(--color-text)" }}
-              >
-                {creatorProfile.goals.primaryGoal.replace("-", " ")}
-              </p>
-            </div>
-            <div className="min-w-0">
-              <p
-                className="text-sm mb-1"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Posting Frequency
-              </p>
-              <p
-                className="font-medium break-words"
-                style={{ color: "var(--color-text)" }}
-              >
-                {creatorProfile.strategy.postingFrequency}
-              </p>
-            </div>
-            <div className="min-w-0">
-              <p
-                className="text-sm mb-1"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Target Audience
-              </p>
-              <p
-                className="font-medium capitalize break-words"
-                style={{ color: "var(--color-text)" }}
-              >
-                {creatorProfile.targetAudience?.replace(/-/g, " ") || "N/A"}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
         <button
@@ -400,7 +298,7 @@ export default function DashboardPage() {
         </button>
 
         <button
-          onClick={() => router.push("/profile")}
+          onClick={() => router.push("/dashboard/planning")}
           className="p-4 sm:p-6 rounded-xl text-left transition-all sm:hover:scale-[1.02]"
           style={{
             backgroundColor: "var(--color-surface)",
@@ -414,21 +312,19 @@ export default function DashboardPage() {
               color: "var(--color-text)",
             }}
           >
-            <FiUser className="w-5 h-5" />
+            <FiCalendar className="w-5 h-5" />
           </div>
           <h3
             className="text-lg font-semibold mb-2"
             style={{ color: "var(--color-text)" }}
           >
-            Your Profile
+            Planning
           </h3>
           <p
             className="text-sm"
             style={{ color: "var(--color-text-secondary)" }}
           >
-            {hasProfile
-              ? "View and edit your profile"
-              : "Complete your creator profile"}
+            Schedule and manage your content calendar
           </p>
         </button>
       </div>

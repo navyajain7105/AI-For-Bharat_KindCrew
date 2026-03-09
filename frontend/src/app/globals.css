@@ -93,6 +93,37 @@ h6 {
   color: var(--color-text) !important;
   background: none !important;
   min-width: 2rem;
+  font-size: 0 !important;
+  position: relative;
+}
+
+/* Add icon arrows using pseudo-elements */
+.react-calendar__navigation__prev-button::before,
+.react-calendar__navigation__next-button::before,
+.react-calendar__navigation__prev2-button::before,
+.react-calendar__navigation__next2-button::before {
+  font-size: 1.25rem;
+  color: var(--color-text);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.react-calendar__navigation__prev2-button::before {
+  content: "«";
+}
+
+.react-calendar__navigation__prev-button::before {
+  content: "‹";
+}
+
+.react-calendar__navigation__next-button::before {
+  content: "›";
+}
+
+.react-calendar__navigation__next2-button::before {
+  content: "»";
 }
 .react-calendar__navigation__label {
   font-size: 1.25rem;
@@ -114,7 +145,8 @@ h6 {
   background: var(--color-surface-hover) !important;
 }
 .react-calendar__tile--active {
-  background: var(--color-indigo-600) !important;
+  background: var(--color-surface-hover) !important;
+  border: 1px solid var(--color-border-light) !important;
   color: #fff !important;
 }
 .react-calendar__tile--hover {
@@ -127,4 +159,125 @@ h6 {
 /* ensure days grid also dark */
 .react-calendar__month-view__days {
   background: var(--color-surface) !important;
+}
+
+/* Landing Page Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 1s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.8s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.8s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.6s ease-out forwards;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Stagger delays for cards */
+.delay-100 {
+  animation-delay: 0.1s;
+}
+
+.delay-200 {
+  animation-delay: 0.2s;
+}
+
+.delay-300 {
+  animation-delay: 0.3s;
+}
+
+.delay-400 {
+  animation-delay: 0.4s;
+}
+
+.delay-500 {
+  animation-delay: 0.5s;
+}
+
+.delay-600 {
+  animation-delay: 0.6s;
+}
+
+/* Initial state for animated elements */
+.animate-fade-in-up,
+.animate-slide-in-left,
+.animate-slide-in-right,
+.animate-scale-in {
+  opacity: 0;
 }
