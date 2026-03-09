@@ -1,4 +1,3 @@
-
 /**
  * Publishing API client
  * communicates with backend scheduling endpoints
@@ -63,9 +62,7 @@ export async function scheduleContent(
   return handleResponse(res);
 }
 
-export async function getSchedules(
-  token: string,
-): Promise<ScheduleRecord[]> {
+export async function getSchedules(token: string): Promise<ScheduleRecord[]> {
   const url = `${API_BASE}/publishing/scheduled`;
   console.debug("[API] GET schedules ->", url);
   const res = await fetch(url, {

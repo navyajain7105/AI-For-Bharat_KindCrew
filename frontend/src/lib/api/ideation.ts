@@ -109,7 +109,9 @@ export async function generateIdeas(
   });
 
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Failed to generate ideas"));
+    throw new Error(
+      await parseErrorMessage(response, "Failed to generate ideas"),
+    );
   }
 
   return response.json();
@@ -165,7 +167,9 @@ export async function evaluateIdea(
   });
 
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Failed to evaluate idea"));
+    throw new Error(
+      await parseErrorMessage(response, "Failed to evaluate idea"),
+    );
   }
 
   return response.json();
@@ -192,7 +196,9 @@ export async function researchIdea(
   });
 
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Failed to research idea"));
+    throw new Error(
+      await parseErrorMessage(response, "Failed to research idea"),
+    );
   }
 
   return response.json();
@@ -222,7 +228,9 @@ export async function selectIdea(
   });
 
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Failed to save selected idea"));
+    throw new Error(
+      await parseErrorMessage(response, "Failed to save selected idea"),
+    );
   }
 
   return response.json();
@@ -245,7 +253,9 @@ export async function getUserIdeas(token: string): Promise<{
   });
 
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Failed to fetch user ideas"));
+    throw new Error(
+      await parseErrorMessage(response, "Failed to fetch user ideas"),
+    );
   }
 
   return response.json();
@@ -274,7 +284,9 @@ export async function enrichIdeaResearch(
   });
 
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Failed to enrich idea research"));
+    throw new Error(
+      await parseErrorMessage(response, "Failed to enrich idea research"),
+    );
   }
 
   return response.json();
