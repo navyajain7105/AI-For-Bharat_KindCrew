@@ -1,195 +1,246 @@
-# ?? AI-For-Bharat KindCrew
+# 🤍 KindCrew - AI Content Creation Platform
 
-**An intelligent content creation platform powered by AI** - helping creators generate, refine, and distribute high-quality content across multiple platforms.
+An AI-powered content creation platform that helps creators ideate, generate, and manage content across multiple platforms.
 
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16+-blue)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue)](https://www.typescriptlang.org/)
 [![AWS](https://img.shields.io/badge/AWS-DynamoDB%20%7C%20Cognito%20%7C%20Bedrock-orange)](https://aws.amazon.com/)
 
-## 🎬 Try It Out
+## 🌐 Live Demo
 
-**Live Demo:** [https://kindcrew-one.vercel.app/](https://kindcrew-one.vercel.app/)
+**Demo:** [https://main.d2bnn3uoz2jafb.amplifyapp.com/](https://main.d2bnn3uoz2jafb.amplifyapp.com/)
 
-## ?? Table of Contents
+> **Note:** This is an early-stage project built for learning and experimentation. Features are actively being developed.
+
+## 📋 Table of Contents
 
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Running Locally](#running-locally)
-- [Deployment](#deployment)
 - [Project Structure](#project-structure)
-- [API Documentation](#api-documentation)
+- [API Overview](#api-overview)
+- [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
-- [Security](#security)
+- [Contributing](#contributing)
 
-## ? Features
+## ✨ Features
 
-### Phase 1: Ideation & Research
+### Content Ideation
+- **AI Idea Generation**: Generate content ideas based on your niche and target audience
+- **Idea Refinement**: Polish rough concepts into structured content ideas
+- **Google Trends Integration**: Research trending topics in your niche
+- **Idea Evaluation**: Score ideas based on virality potential and clarity
 
-- **Zero Idea Flow**: Generate content ideas from scratch based on niche and audience
-- **Some Idea Flow**: Refine rough ideas into polished content concepts
-- **Full Idea Flow**: Evaluate and score ideas based on virality, clarity, and competition
-- **AI Research**: Leverage Google Trends and market research data
+### Content Creation
+- **Multi-Platform Support**: Create content for Instagram, Twitter, LinkedIn, YouTube, and TikTok
+- **AI Content Generation**: Generate platform-specific content with customizable tones
+- **Draft Management**: Save and organize your content ideas
+- **Content Library**: Manage all your created content in one place
 
-### Phase 2: Content Generation
+### Planning & Analytics
+- **Calendar View**: Visualize your content schedule
+- **Publishing Scheduler**: Plan when to publish your content (scheduling features in development)
+- **Performance Tracking**: Track basic content metrics
+- **AI Insights**: Get suggestions to improve your content (in development)
 
-- **Multi-Platform Support**: Instagram, Twitter, LinkedIn, YouTube, TikTok
-- **Smart Variants**: Auto-generate platform-specific content variations
-- **Content Scheduling**: Schedule posts across multiple platforms
-- **Draft Management**: Save, edit, organize content drafts
+### User Management
+- **Secure Authentication**: OAuth login via AWS Cognito
+- **Creator Profiles**: Set up and manage your creator profile with niche, audience, and preferences
+- **Multi-Platform Integration**: Connect and manage multiple social media platforms
 
-### Authentication & Analytics
-
-- **AWS Cognito**: Secure OAuth login with Google
-- **Dashboard Analytics**: Track content performance
-- **Creator Profiles**: Manage multiple creator accounts
-
-## ??? Tech Stack
+## 🛠️ Tech Stack
 
 ### Frontend
-
-- Next.js 16 + TypeScript 5 + Tailwind CSS 4
-- Zustand state management, Recharts visualization
-- Axios HTTP client, Sonner notifications
+- **Framework**: Next.js 16 (App Router) with TypeScript
+- **Styling**: Tailwind CSS 4 with custom theme tokens
+- **State Management**: Zustand
+- **UI Components**: Custom components with React Icons
+- **Charts**: Recharts for analytics visualization
+- **Calendar**: React Calendar for scheduling
 
 ### Backend
-
-- Node.js 18+ with Express 5 (ES6 modules)
-- AWS SDK, DynamoDB, Cognito, Bedrock
-
-### Infrastructure
-
-- **Backend**: Render (free tier, Node.js)
-- **Frontend**: AWS Amplify / Vercel (free tier, Next.js)
+- **Runtime**: Node.js 18+ with Express 5
 - **Database**: AWS DynamoDB
-- **Auth**: AWS Cognito
-- **AI**: AWS Bedrock (Gemma 3)
-- **Region**: ap-south-1 (Mumbai)
+- **Authentication**: AWS Cognito
+- **AI**: AWS Bedrock (Claude/other models)
+- **APIs**: Google Trends integration
 
-## ?? Prerequisites
+### Deployment
+- **Frontend**: AWS Amplify
+- **Backend**: Render (free tier)
+- **Region**: ap-south-1 (Mumbai for low latency)
 
-- Node.js 18.0.0+, npm 9.0.0+
-- AWS Account with DynamoDB, Cognito, Bedrock access
+## 📦 Prerequisites
+
+Before you begin, ensure you have:
+- Node.js 18.0.0 or higher
+- npm 9.0.0 or higher
+- AWS Account with access to DynamoDB, Cognito, and Bedrock
 - GitHub Account
 
-## ?? Quick Start
+## 🚀 Quick Start
 
+1. **Clone the repository**
 ```bash
-# Clone
 git clone https://github.com/navyajain7105/AI-For-Bharat_KindCrew.git
 cd AI-For-Bharat_KindCrew
-
-# Backend (http://localhost:5000)
-cd backend && npm install && npm run dev
-
-# Frontend (http://localhost:3000)
-cd ../frontend && npm install && npm run dev
 ```
 
-## ?? Project Structure
-
-```
-+-- backend/
-�   +-- config/app.js          # Express setup
-�   +-- controllers/           # Request handlers
-�   +-- services/              # Business logic
-�   +-- utils/                 # Utilities
-�   +-- routes/
-�   +-- middleware/
-�   +-- server.js
-�   +-- package.json
-�
-+-- frontend/
-�   +-- src/
-�   �   +-- app/               # Next.js App Router
-�   �   +-- lib/api/           # API clients
-�   �   +-- store/             # Zustand state
-�   �   +-- components/
-�   +-- amplify.yml            # Build config
-�   +-- package.json
-�
-+-- docs/
-�   +-- design.md
-�   +-- requirements.md
-�
-+-- DEPLOY_RENDER.md / DEPLOY_AMPLIFY.md
+2. **Set up the backend**
+```bash
+cd backend
+npm install
+# Create .env file with required AWS credentials
+npm run dev  # Runs on http://localhost:5000
 ```
 
-## ?? API Endpoints
+3. **Set up the frontend**
+```bash
+cd ../frontend
+npm install
+# Create .env.local with backend API URL
+npm run dev  # Runs on http://localhost:3000
+```
 
-**Auth:**
+> **Security Note:** Never commit `.env` files. Required environment variables must be configured separately for each deployment.
 
-- GET /api/auth/login - Start OAuth
-- GET /api/auth/callback - OAuth callback
-- GET /api/auth/logout - Logout
+## 📁 Project Structure
 
-**Profiles:**
+```
+AI-For-Bharat_KindCrew/
+├── backend/
+│   ├── config/          # App configuration
+│   ├── controllers/     # Route handlers
+│   ├── services/        # Business logic
+│   ├── models/          # Data models
+│   ├── middleware/      # Auth & error handlers
+│   ├── routes/          # API routes
+│   ├── utils/           # Helper functions
+│   └── server.js        # Entry point
+│
+├── frontend/
+│   ├── src/
+│   │   ├── app/         # Next.js pages (App Router)
+│   │   │   ├── dashboard/
+│   │   │   ├── ideation/
+│   │   │   ├── content/
+│   │   │   ├── profile/
+│   │   │   └── analytics/
+│   │   ├── components/  # React components
+│   │   ├── hooks/       # Custom hooks
+│   │   ├── lib/         # API clients & utilities
+│   │   └── store/       # Zustand state management
+│   └── public/          # Static assets
+│
+├── docs/                # Documentation
+└── README.md
+```
 
-- POST /api/creator-profiles - Create/update profile
-- GET /api/creator-profiles/:userId - Get profile
+## 🔌 API Overview
 
-**Ideation:**
+### Authentication
+- `GET /api/auth/login` - Initiate OAuth flow
+- `GET /api/auth/callback` - Handle OAuth callback
+- `POST /api/auth/logout` - Logout user
 
-- POST /api/ideation/generate - Generate ideas
-- POST /api/ideation/refine - Refine ideas
-- POST /api/ideation/evaluate - Score ideas
-- POST /api/ideation/research - Research idea
+### Creator Profiles
+- `POST /api/creator-profiles` - Create/update profile
+- `GET /api/creator-profiles/:userId` - Get profile
 
-**Content:**
+### Ideation
+- `POST /api/ideation/generate` - Generate content ideas
+- `POST /api/ideation/refine` - Refine existing ideas
+- `POST /api/ideation/evaluate` - Score and evaluate ideas
+- `POST /api/ideation/research` - Research trends for ideas
 
-- POST /api/content/from-idea - Create content
-- GET /api/content/user - List content
-- POST /api/content/update-status - Change status
+### Content Management
+- `POST /api/content/from-idea` - Create content from idea
+- `GET /api/content/user` - List user's content
+- `POST /api/content/update-status` - Update content status
 
-## ?? Troubleshooting
+### Publishing (In Development)
+- `POST /api/publishing/schedule` - Schedule content
+- `GET /api/publishing/schedules` - Get scheduled content
 
-**OAuth `invalid_state` error:**
+## 🚢 Deployment
 
-- Ensure `app.set("trust proxy", 1)` in backend production config
-- Clear cookies + test in incognito mode
-- Verify HTTPS in production
+### Backend (Render)
+1. Connect your GitHub repository to Render
+2. Configure environment variables in Render dashboard
+3. Deploy from `main` branch
 
-**Amplify build fails:**
+See [DEPLOY_RENDER.md](DEPLOY_RENDER.md) for detailed instructions.
 
-- Check `frontend/amplify.yml` uses `applications:` key
-- Verify `appRoot: frontend` is set
+### Frontend (AWS Amplify)
+1. Connect your GitHub repository to AWS Amplify
+2. Configure build settings using `amplify.yml`
+3. Set environment variables in Amplify console
+4. Deploy from `main` branch
 
-**CORS errors:**
+See [DEPLOY_AMPLIFY.md](DEPLOY_AMPLIFY.md) for detailed instructions.
 
-- Set `FRONTEND_URL` on backend
-- Verify URL matches exactly
+## 🐛 Troubleshooting
 
-**DynamoDB errors:**
+### OAuth Issues
+- Ensure callback URLs match exactly in AWS Cognito settings
+- Clear browser cookies and cache
+- Verify HTTPS is used in production
+- Check `trust proxy` setting in Express config
 
-- Check table names and region
-- Verify IAM permissions
+### Build Failures
+- Verify Node.js version matches requirements
+- Check all environment variables are set
+- Review build logs for specific errors
+- Ensure `amplify.yml` is properly configured
 
-## ?? Security
+### API Connection Issues
+- Verify CORS settings in backend
+- Check that frontend `NEXT_PUBLIC_API_URL` points to correct backend
+- Ensure backend is running and accessible
 
-- Never commit `.env` with credentials
-- Use AWS IAM roles in production
-- Rotate secrets regularly
+### DynamoDB Errors
+- Verify AWS credentials and permissions
+- Check table names and region configuration
+- Ensure tables exist with correct schema
+
+## 🔒 Security
+
+- **Never** commit `.env` files or credentials in code
+- Use environment variables for all sensitive data
+- Rotate AWS access keys regularly
 - Enable MFA on AWS accounts
-- Use HTTPS (enforced by Render/Amplify)
+- Use HTTPS in production (enforced by hosting platforms)
+- Implement proper CORS policies
+- Review [SECURITY_NOTICE.md](SECURITY_NOTICE.md) for more details
 
-See [SECURITY_NOTICE.md](SECURITY_NOTICE.md)
+## 🤝 Contributing
 
-## ?? Contributing
+Contributions are welcome! Please follow these steps:
 
-1. `git checkout -b feature/your-feature`
-2. `git commit -m "feat: Add feature"`
-3. `git push origin feature/your-feature`
-4. Open PR
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -m 'Add some feature'`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Open a Pull Request
 
-## ?? Support
+## 📝 License
 
-- [GitHub Issues](https://github.com/navyajain7105/AI-For-Bharat_KindCrew/issues)
+This project is part of the AI-For-Bharat initiative.
 
-- Review `/docs` folder
+## 🙏 Acknowledgments
+
+- Built with AWS services (DynamoDB, Cognito, Bedrock)
+- Google Trends API for trend research
+- Next.js and React ecosystem
+- Tailwind CSS for styling
+
+## 📧 Support
+
+- **Issues**: [GitHub Issues](https://github.com/navyajain7105/AI-For-Bharat_KindCrew/issues)
+- **Documentation**: Check `/docs` folder for detailed guides
 
 ---
 
-**Version:** 1.0.0 | **Updated:** March 8, 2026 | **Maintained by:** KindCrew - AI-For-Bharat Team
+**Version:** 1.0.0-beta | **Last Updated:** March 2026 | **Built for AI-For-Bharat**

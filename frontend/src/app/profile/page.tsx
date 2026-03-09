@@ -5,14 +5,22 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppStore } from "@/store/useAppStore";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
+import {
+  FiTarget,
+  FiEdit3,
+  FiCheckCircle,
+  FiAlertCircle,
+  FiUsers,
+  FiClock,
+  FiTag,
+} from "react-icons/fi";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { userInfo, token, authReady, isAuthenticated, logout } = useAuth();
   const { creatorProfile, fetchProfile, profileLoading, hasProfile } =
     useAppStore();
-  console.log("User Info:", userInfo);
-  console.log("Creator Profile:", creatorProfile);
+
   useEffect(() => {
     if (authReady && !isAuthenticated()) {
       router.replace("/");
@@ -44,38 +52,46 @@ export default function ProfilePage() {
     logout();
   };
 
+  const formatDateTime = (value?: string) => {
+    if (!value) return "N/A";
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return "N/A";
+    return dt.toLocaleString();
+  };
+
   const profileContent = (
-    <div className="max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1
-          className="text-3xl sm:text-4xl font-bold"
-          style={{ color: "var(--color-text)" }}
-        >
-          Profile
-        </h1>
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl sm:text-4xl font-bold">Profile</h1>
+          <p className="text-sm text-gray-400 mt-1">
+            Manage your identity and creator setup in one place.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push("/onboarding?edit=true")}
+            className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-white text-black text-sm font-medium transition-colors shadow-sm"
+          >
+            Edit Creator Profile
+          </button>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 rounded-xl bg-gray-300 hover:bg-gray-200 text-black text-sm font-medium transition-colors"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
-      {/* User Information */}
-      <div
-        className="p-6 rounded-xl mb-6"
-        style={{
-          backgroundColor: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-        }}
-      >
-        <h2
-          className="text-2xl font-semibold mb-6"
-          style={{ color: "var(--color-text)" }}
-        >
-          User Information
-        </h2>
-        <div className="flex items-start gap-6 flex-col sm:flex-row">
+      <div className="grid grid-cols-1 gap-4">
+        <div className="p-6 rounded-2xl border border-border bg-surface">
+          <div className="flex items-start gap-5 flex-col sm:flex-row">
           {userInfo?.profileImage ? (
             <img
               src={userInfo.profileImage}
               alt={userInfo.name}
-              className="w-24 h-24 rounded-full"
+              className="w-24 h-24 rounded-full ring-2 ring-gray-700"
             />
           ) : (
             <div
@@ -87,540 +103,260 @@ export default function ProfilePage() {
               </span>
             </div>
           )}
-          <div className="flex-1 space-y-3">
-            <div>
-              <p
-                className="text-sm font-medium mb-1"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Name
-              </p>
-              <p className="text-lg" style={{ color: "var(--color-text)" }}>
+            <div className="flex-1">
+              <h2 className="text-2xl font-semibold">
                 {userInfo?.givenName && userInfo?.familyName
                   ? `${userInfo.givenName} ${userInfo.familyName}`
-                  : userInfo?.name || "N/A"}
-              </p>
-            </div>
-            <div>
-              <p
-                className="text-sm font-medium mb-1"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Email
-              </p>
-              <p className="text-lg" style={{ color: "var(--color-text)" }}>
-                {userInfo?.email || "N/A"}
-              </p>
-            </div>
-            <div>
-              <p
-                className="text-sm font-medium mb-1"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                User ID
-              </p>
-              <p
-                className="text-sm font-mono"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                {userInfo?.userId || "N/A"}
-              </p>
-            </div>
-            <div>
-              <p
-                className="text-sm font-medium mb-1"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Role
-              </p>
-              <span
-                className="px-3 py-1 rounded-full text-sm inline-block"
-                style={{
-                  backgroundColor: "var(--color-surface-hover)",
-                  color: "var(--color-text)",
-                }}
-              >
-                {userInfo?.role || "user"}
-              </span>
+                  : userInfo?.name || "User"}
+              </h2>
+              <p className="text-gray-400 mt-1">{userInfo?.email || "No email"}</p>
+
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-xl border border-border bg-background p-3">
+                  <p className="text-xs text-gray-400">User ID</p>
+                  <p className="text-sm font-mono text-gray-200 truncate mt-1">
+                    {userInfo?.userId || "N/A"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-background p-3">
+                  <p className="text-xs text-gray-400">Role</p>
+                  <p className="text-sm capitalize text-gray-200 mt-1">
+                    {userInfo?.role || "user"}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Creator Profile */}
       {hasProfile && creatorProfile ? (
-        <div
-          className="p-6 rounded-xl"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h2
-              className="text-2xl font-semibold"
-              style={{ color: "var(--color-text)" }}
-            >
-              Creator Profile
-            </h2>
-            <button
-              onClick={() => router.push("/onboarding?edit=true")}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              style={{
-                backgroundColor: "var(--color-surface-hover)",
-                color: "var(--color-text)",
-              }}
-            >
-              Edit Profile
-            </button>
-          </div>
-
-          <div className="space-y-6">
-            {/* Niche */}
-            <div>
-              <h3
-                className="text-lg font-semibold mb-3"
-                style={{ color: "var(--color-text)" }}
-              >
-                Niche
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                <span
-                  className="px-4 py-2 rounded-lg text-sm"
-                  style={{
-                    background:
-                      "linear-gradient(90deg, #60a5fa 0%, #a78bfa 100%)",
-                    color: "var(--color-white)",
-                  }}
-                >
-                  {creatorProfile.niche.primary}
-                </span>
-                {creatorProfile.niche.secondary && (
-                  <span
-                    className="px-4 py-2 rounded-lg text-sm"
-                    style={{
-                      backgroundColor: "var(--color-surface-hover)",
-                      color: "var(--color-text)",
-                    }}
-                  >
-                    {creatorProfile.niche.secondary}
-                  </span>
-                )}
-              </div>
+        <div className="rounded-2xl border border-border bg-surface p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-border bg-background p-4">
+              <p className="text-xs text-gray-400 mb-1">Primary Niche</p>
+              <p className="text-lg font-semibold text-gray-100">
+                {creatorProfile.niche?.primary || "N/A"}
+              </p>
             </div>
-
-            {/* Target Audience */}
-            <div>
-              <h3
-                className="text-lg font-semibold mb-3"
-                style={{ color: "var(--color-text)" }}
-              >
-                Target Audience
-              </h3>
-              <p
-                className="font-medium capitalize"
-                style={{ color: "var(--color-text)" }}
-              >
+            <div className="rounded-xl border border-border bg-background p-4">
+              <p className="text-xs text-gray-400 mb-1">Target Audience</p>
+              <p className="text-lg font-semibold text-gray-100 capitalize">
                 {creatorProfile.targetAudience?.replace(/-/g, " ") || "N/A"}
               </p>
             </div>
-
-            {/* Platforms */}
-            {creatorProfile.platforms &&
-              creatorProfile.platforms.length > 0 && (
-                <div>
-                  <h3
-                    className="text-lg font-semibold mb-3"
-                    style={{ color: "var(--color-text)" }}
-                  >
-                    Platforms
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {creatorProfile.platforms.map((platform, index) => (
-                      <div
-                        key={index}
-                        className="p-4 rounded-lg"
-                        style={{
-                          backgroundColor: "var(--color-background)",
-                          border: "1px solid var(--color-border)",
-                        }}
-                      >
-                        <p
-                          className="font-medium mb-1"
-                          style={{ color: "var(--color-text)" }}
-                        >
-                          {platform.name}
-                        </p>
-                        <p
-                          className="text-sm"
-                          style={{ color: "var(--color-text-secondary)" }}
-                        >
-                          {platform.handle}
-                        </p>
-                        <span
-                          className={`text-xs mt-2 inline-block ${
-                            platform.active ? "text-green-500" : "text-red-500"
-                          }`}
-                        >
-                          {platform.active ? "Active" : "Inactive"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-            {/* Competitors */}
-            {creatorProfile.competitors &&
-              creatorProfile.competitors.length > 0 && (
-                <div>
-                  <h3
-                    className="text-lg font-semibold mb-3"
-                    style={{ color: "var(--color-text)" }}
-                  >
-                    Competitors
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {creatorProfile.competitors.map((competitor, index) => (
-                      <div
-                        key={index}
-                        className="p-4 rounded-lg"
-                        style={{
-                          backgroundColor: "var(--color-background)",
-                          border: "1px solid var(--color-border)",
-                        }}
-                      >
-                        {competitor.name && (
-                          <p
-                            className="font-medium mb-1"
-                            style={{ color: "var(--color-text)" }}
-                          >
-                            {competitor.name}
-                          </p>
-                        )}
-                        {competitor.url && (
-                          <p
-                            className="text-sm mb-2 break-all"
-                            style={{ color: "var(--color-text-secondary)" }}
-                          >
-                            {competitor.url}
-                          </p>
-                        )}
-                        {competitor.notes && (
-                          <p
-                            className="text-sm italic"
-                            style={{ color: "var(--color-text-muted)" }}
-                          >
-                            {competitor.notes}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-            {/* Goals */}
-            <div>
-              <h3
-                className="text-lg font-semibold mb-3"
-                style={{ color: "var(--color-text)" }}
-              >
-                Goals
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p
-                    className="text-sm mb-1"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    Primary Goal
-                  </p>
-                  <p
-                    className="font-medium capitalize"
-                    style={{ color: "var(--color-text)" }}
-                  >
-                    {creatorProfile.goals.primaryGoal.replace("-", " ")}
-                  </p>
-                </div>
-                <div>
-                  <p
-                    className="text-sm mb-1"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    Creator Level
-                  </p>
-                  <p
-                    className="font-medium capitalize"
-                    style={{ color: "var(--color-text)" }}
-                  >
-                    {creatorProfile.goals.creatorLevel}
-                  </p>
-                </div>
-              </div>
+            <div className="rounded-xl border border-border bg-background p-4">
+              <p className="text-xs text-gray-400 mb-1">Secondary Niche</p>
+              <p className="text-base font-medium text-gray-100">
+                {creatorProfile.niche?.secondary || "Not specified"}
+              </p>
             </div>
-
-            {/* Strategy */}
-            <div>
-              <h3
-                className="text-lg font-semibold mb-3"
-                style={{ color: "var(--color-text)" }}
-              >
-                Content Strategy
-              </h3>
-              <div className="space-y-3">
-                <div>
-                  <p
-                    className="text-sm mb-1"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    Content Type
-                  </p>
-                  <p
-                    className="font-medium capitalize"
-                    style={{ color: "var(--color-text)" }}
-                  >
-                    {creatorProfile.strategy.contentStrategy}
-                  </p>
-                </div>
-                <div>
-                  <p
-                    className="text-sm mb-1"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    Posting Frequency
-                  </p>
-                  <p
-                    className="font-medium"
-                    style={{ color: "var(--color-text)" }}
-                  >
-                    {creatorProfile.strategy.postingFrequency}
-                  </p>
-                </div>
-                {creatorProfile.strategy.contentPillars.length > 0 && (
-                  <div>
-                    <p
-                      className="text-sm mb-2"
-                      style={{ color: "var(--color-text-secondary)" }}
-                    >
-                      Content Pillars
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {creatorProfile.strategy.contentPillars.map(
-                        (pillar, index) => (
-                          <span
-                            key={index}
-                            className="px-3 py-1 rounded-lg text-sm"
-                            style={{
-                              backgroundColor: "var(--color-background)",
-                              border: "1px solid var(--color-border)",
-                              color: "var(--color-text)",
-                            }}
-                          >
-                            {pillar}
-                          </span>
-                        ),
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+            <div className="rounded-xl border border-border bg-background p-4">
+              <p className="text-xs text-gray-400 mb-1">Content Strategy Type</p>
+              <p className="text-base font-medium text-gray-100 capitalize">
+                {creatorProfile.strategy?.contentStrategy || "N/A"}
+              </p>
             </div>
+          </div>
 
-            {/* Preferences */}
-            {creatorProfile.preferences && (
-              <div>
-                <h3
-                  className="text-lg font-semibold mb-3"
-                  style={{ color: "var(--color-text)" }}
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Platforms</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(creatorProfile.platforms || []).map((platform, index) => (
+                <div
+                  key={index}
+                  className="p-4 rounded-xl border border-border bg-background"
                 >
-                  Preferences
-                </h3>
-                <div className="space-y-3">
-                  {creatorProfile.preferences.tones &&
-                    creatorProfile.preferences.tones.length > 0 && (
-                      <div>
-                        <p
-                          className="text-sm mb-2"
-                          style={{ color: "var(--color-text-secondary)" }}
-                        >
-                          Tones
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {creatorProfile.preferences.tones.map(
-                            (tone, index) => (
-                              <span
-                                key={index}
-                                className="px-3 py-1 rounded-lg text-sm"
-                                style={{
-                                  backgroundColor: "var(--color-background)",
-                                  border: "1px solid var(--color-border)",
-                                  color: "var(--color-text)",
-                                }}
-                              >
-                                {tone}
-                              </span>
-                            ),
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  {creatorProfile.preferences.formats &&
-                    creatorProfile.preferences.formats.length > 0 && (
-                      <div>
-                        <p
-                          className="text-sm mb-2"
-                          style={{ color: "var(--color-text-secondary)" }}
-                        >
-                          Formats
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {creatorProfile.preferences.formats.map(
-                            (format, index) => (
-                              <span
-                                key={index}
-                                className="px-3 py-1 rounded-lg text-sm"
-                                style={{
-                                  backgroundColor: "var(--color-background)",
-                                  border: "1px solid var(--color-border)",
-                                  color: "var(--color-text)",
-                                }}
-                              >
-                                {format}
-                              </span>
-                            ),
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <p
-                        className="text-sm mb-1"
-                        style={{ color: "var(--color-text-secondary)" }}
-                      >
-                        CTA Strength
-                      </p>
-                      <p
-                        className="font-medium capitalize"
-                        style={{ color: "var(--color-text)" }}
-                      >
-                        {creatorProfile.preferences.constraints?.ctaStrength ||
-                          "medium"}
-                      </p>
-                    </div>
-                    <div>
-                      <p
-                        className="text-sm mb-1"
-                        style={{ color: "var(--color-text-secondary)" }}
-                      >
-                        Formality
-                      </p>
-                      <p
-                        className="font-medium capitalize"
-                        style={{ color: "var(--color-text)" }}
-                      >
-                        {creatorProfile.preferences.constraints?.formality ||
-                          "semi-formal"}
-                      </p>
-                    </div>
-                    <div>
-                      <p
-                        className="text-sm mb-1"
-                        style={{ color: "var(--color-text-secondary)" }}
-                      >
-                        Time Commitment
-                      </p>
-                      <p
-                        className="font-medium capitalize"
-                        style={{ color: "var(--color-text)" }}
-                      >
-                        {creatorProfile.preferences.timeCommitment || "medium"}
-                      </p>
-                    </div>
-                  </div>
+                  <p className="font-medium text-gray-100">{platform.name}</p>
+                  <p className="text-sm text-gray-400">{platform.handle}</p>
+                  <span
+                    className={`text-xs mt-2 inline-block ${
+                      platform.active ? "text-green-400" : "text-red-400"
+                    }`}
+                  >
+                    {platform.active ? "Active" : "Inactive"}
+                  </span>
                 </div>
-              </div>
-            )}
+              ))}
+              {(!creatorProfile.platforms || creatorProfile.platforms.length === 0) && (
+                <p className="text-sm text-gray-400">No platforms added yet.</p>
+              )}
+            </div>
+          </div>
 
-            {/* Status */}
-            <div
-              className="pt-4 border-t"
-              style={{ borderColor: "var(--color-border)" }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p
-                    className="text-sm mb-1"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    Status
-                  </p>
-                  <span
-                    className="px-3 py-1 rounded-full text-sm inline-block capitalize"
-                    style={{
-                      backgroundColor:
-                        creatorProfile.status === "active"
-                          ? "rgba(34, 197, 94, 0.2)"
-                          : "var(--color-surface-hover)",
-                      color:
-                        creatorProfile.status === "active"
-                          ? "#22c55e"
-                          : "var(--color-text)",
-                    }}
-                  >
-                    {creatorProfile.status}
-                  </span>
-                </div>
-                <div>
-                  <p
-                    className="text-sm mb-1"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    Onboarding
-                  </p>
-                  <span
-                    className="px-3 py-1 rounded-full text-sm inline-block"
-                    style={{
-                      backgroundColor: creatorProfile.settings
-                        .onboardingCompleted
-                        ? "rgba(34, 197, 94, 0.2)"
-                        : "rgba(251, 146, 60, 0.2)",
-                      color: creatorProfile.settings.onboardingCompleted
-                        ? "#22c55e"
-                        : "#fb923c",
-                    }}
-                  >
-                    {creatorProfile.settings.onboardingCompleted
-                      ? "Completed"
-                      : "Incomplete"}
-                  </span>
-                </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Content Strategy</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-4 rounded-xl border border-border bg-background">
+                <p className="text-xs text-gray-400">Primary Goal</p>
+                <p className="text-sm text-gray-100 capitalize mt-1">
+                  {creatorProfile.goals?.primaryGoal?.replace("-", " ") || "N/A"}
+                </p>
+              </div>
+              <div className="p-4 rounded-xl border border-border bg-background">
+                <p className="text-xs text-gray-400">Creator Level</p>
+                <p className="text-sm text-gray-100 capitalize mt-1">
+                  {creatorProfile.goals?.creatorLevel || "N/A"}
+                </p>
+              </div>
+              <div className="p-4 rounded-xl border border-border bg-background">
+                <p className="text-xs text-gray-400">Posting Frequency</p>
+                <p className="text-sm text-gray-100 mt-1">
+                  {creatorProfile.strategy?.postingFrequency || "N/A"}
+                </p>
               </div>
             </div>
           </div>
+
+          {creatorProfile.preferences && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Preferences</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-xl border border-border bg-background p-4">
+                  <p className="text-xs text-gray-400 mb-2">Tones</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(creatorProfile.preferences.tones || []).length > 0 ? (
+                      (creatorProfile.preferences.tones || []).map((tone, index) => (
+                        <span
+                          key={`${tone}-${index}`}
+                          className="px-3 py-1 rounded-lg text-sm border border-border bg-surface text-gray-200"
+                        >
+                          {tone}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-gray-400">No tones selected</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-background p-4">
+                  <p className="text-xs text-gray-400 mb-2">Formats</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(creatorProfile.preferences.formats || []).length > 0 ? (
+                      (creatorProfile.preferences.formats || []).map((format, index) => (
+                        <span
+                          key={`${format}-${index}`}
+                          className="px-3 py-1 rounded-lg text-sm border border-border bg-surface text-gray-200"
+                        >
+                          {format}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-gray-400">No formats selected</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+                <div className="rounded-xl border border-border bg-background p-3">
+                  <p className="text-xs text-gray-400">CTA Strength</p>
+                  <p className="text-sm text-gray-100 capitalize mt-1">
+                    {creatorProfile.preferences.constraints?.ctaStrength || "N/A"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-background p-3">
+                  <p className="text-xs text-gray-400">Formality</p>
+                  <p className="text-sm text-gray-100 capitalize mt-1">
+                    {creatorProfile.preferences.constraints?.formality || "N/A"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-background p-3">
+                  <p className="text-xs text-gray-400">Time Commitment</p>
+                  <p className="text-sm text-gray-100 capitalize mt-1">
+                    {creatorProfile.preferences.timeCommitment || "N/A"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-background p-3">
+                  <p className="text-xs text-gray-400">Emoji Usage</p>
+                  <p className="text-sm text-gray-100 mt-1">
+                    {creatorProfile.preferences.constraints?.emojiUsage
+                      ? "Enabled"
+                      : "Disabled"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(creatorProfile.competitors || []).length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Competitors</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(creatorProfile.competitors || []).map((competitor) => (
+                  <div
+                    key={competitor.competitorId}
+                    className="rounded-xl border border-border bg-background p-4"
+                  >
+                    <p className="text-sm font-semibold text-gray-100">
+                      {competitor.name || "Unnamed competitor"}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1 break-all">
+                      {competitor.url || "No URL"}
+                    </p>
+                    {competitor.notes && (
+                      <p className="text-sm text-gray-300 mt-2">{competitor.notes}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {creatorProfile.strategy?.contentPillars?.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Content Pillars</h3>
+              <div className="flex flex-wrap gap-2">
+                {creatorProfile.strategy.contentPillars.map((pillar, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 rounded-lg text-sm border border-border bg-background text-gray-200"
+                  >
+                    {pillar}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-700">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background text-gray-200 text-sm capitalize border border-border">
+              <FiTarget size={14} /> {creatorProfile.status || "unknown"}
+            </span>
+            <span
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border ${
+                creatorProfile.settings?.onboardingCompleted
+                  ? "bg-green-500/10 text-green-400 border-green-500/30"
+                  : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+              }`}
+            >
+              {creatorProfile.settings?.onboardingCompleted ? (
+                <FiCheckCircle size={14} />
+              ) : (
+                <FiAlertCircle size={14} />
+              )}
+              {creatorProfile.settings?.onboardingCompleted
+                ? "Onboarding Complete"
+                : "Onboarding Incomplete"}
+            </span>
+            {profileLoading && (
+              <span className="text-sm text-gray-400">Refreshing profile...</span>
+            )}
+          </div>
         </div>
       ) : (
-        <div
-          className="p-8 rounded-xl text-center"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <p
-            className="text-lg mb-4"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
-            No creator profile found
+        <div className="p-10 rounded-2xl text-center border border-border bg-surface">
+          <div className="mx-auto w-14 h-14 rounded-full bg-background border border-border flex items-center justify-center mb-4">
+            <FiEdit3 className="text-gray-300" size={22} />
+          </div>
+          <p className="text-lg mb-2 text-gray-200">No creator profile found</p>
+          <p className="text-sm text-gray-400 mb-6">
+            Complete onboarding once to unlock ideation, planning, and insights tailored to your niche.
           </p>
           <button
             onClick={() => router.push("/onboarding")}
-            className="px-6 py-3 rounded-lg font-medium transition-colors"
-            style={{
-              background: "linear-gradient(90deg, #60a5fa 0%, #a78bfa 100%)",
-              color: "var(--color-white)",
-            }}
+            className="px-6 py-3 rounded-xl font-medium transition-colors bg-white hover:bg-gray-100 text-black shadow-sm"
           >
             Create Profile
           </button>
