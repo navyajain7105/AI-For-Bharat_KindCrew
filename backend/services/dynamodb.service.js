@@ -116,12 +116,14 @@ class DynamoDBService {
     const expressionAttributeNames = {};
     const expressionAttributeValues = {};
 
-    Object.keys(updates).forEach((key, index) => {
+    Object.entries(updates)
+      .filter(([, value]) => value !== undefined)
+      .forEach(([key, value], index) => {
       const attrName = `#attr${index}`;
       const attrValue = `:val${index}`;
       updateExpression.push(`${attrName} = ${attrValue}`);
       expressionAttributeNames[attrName] = key;
-      expressionAttributeValues[attrValue] = updates[key];
+      expressionAttributeValues[attrValue] = value;
     });
 
     updateExpression.push("#updatedAt = :updatedAt");
@@ -149,12 +151,14 @@ class DynamoDBService {
     const expressionAttributeValues = {};
 
     // Add standard updates
-    Object.keys(updates).forEach((key, index) => {
+    Object.entries(updates)
+      .filter(([, value]) => value !== undefined)
+      .forEach(([key, value], index) => {
       const attrName = `#attr${index}`;
       const attrValue = `:val${index}`;
       updateExpression.push(`${attrName} = ${attrValue}`);
       expressionAttributeNames[attrName] = key;
-      expressionAttributeValues[attrValue] = updates[key];
+      expressionAttributeValues[attrValue] = value;
     });
 
     // Add new login to history
