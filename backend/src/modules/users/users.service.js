@@ -103,6 +103,39 @@ export class UsersService {
     return this.createUser(identity, name, additionalData);
   }
 
+  async resolveAuthenticatedUser(identity, userData = {}) {
+    const normalizedIdentity = normalizeProviderIdentity(identity);
+    const providerUser = await this.repository.findByProviderIdentity(
+      normalizedIdentity.provider,
+      normalizedIdentity.providerUserId,
+    );
+
+    if (providerUser) return providerUser;
+
+    const normalizedEmail = normalizeEmail(normalizedIdentity.email);
+    if (normalizedIdentity.emailVerified && normalizedEmail) {
+      const emailUser = await this.repository.findByEmail(normalizedEmail);
+      if (emailUser) {
+        throw new IdentityLinkingRequiredError(
+          normalizedIdentity,
+          emailUser.userId,
+        );
+      }
+    }
+
+    if (!normalizedEmail) {
+      throw new Error(
+        "Verified Cognito identity email is required to create a user",
+      );
+    }
+
+    return this.createUser(
+      normalizedIdentity,
+      userData.name || normalizedEmail,
+      userData,
+    );
+  }
+
   getLoginUpdates(name, identity, additionalData) {
     return {
       name,
