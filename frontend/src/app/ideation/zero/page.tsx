@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useIdeation } from "@/hooks/useIdeation";
+import { useCreatorProfile } from "@/hooks/useCreatorProfile";
 import {
   FiArrowLeft,
   FiArrowRight,
@@ -20,7 +22,7 @@ const formatScore = (score: number | string | undefined): string => {
 
 export default function ZeroIdeaPage() {
   const router = useRouter();
-  const { userInfo, token } = useAuth();
+  const { userInfo, token, isAuthenticated } = useAuth();
   const {
     ideas,
     selectedIdea,
@@ -32,6 +34,31 @@ export default function ZeroIdeaPage() {
     selectIdea,
     clearIdeas,
   } = useIdeation();
+
+  const { creatorProfile, fetchProfile } = useCreatorProfile();
+
+  // Fetch creator profile if token is available and profile is not loaded
+  useEffect(() => {
+    if (token && isAuthenticated() && !creatorProfile) {
+      fetchProfile(token);
+    }
+  }, [token, isAuthenticated, creatorProfile, fetchProfile]);
+
+  // Synchronize creator profile fields to ideation zero form
+  useEffect(() => {
+    if (creatorProfile) {
+      const firstPlatform = Array.isArray(creatorProfile.platforms) && creatorProfile.platforms.length > 0
+        ? creatorProfile.platforms[0].name
+        : "linkedin";
+
+      setProfile({
+        niche: creatorProfile.niche?.primary || "",
+        audience: creatorProfile.targetAudience || "",
+        platforms: [firstPlatform],
+        goal: creatorProfile.goals?.primaryGoal || "growth",
+      });
+    }
+  }, [creatorProfile, setProfile]);
 
   const renderValue = (val: any) => {
     if (val == null) return "";

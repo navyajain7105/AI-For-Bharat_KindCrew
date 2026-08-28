@@ -2,6 +2,7 @@ import {
   BedrockRuntimeClient,
   ConverseCommand,
 } from "@aws-sdk/client-bedrock-runtime";
+import { buildCreatorContext } from "../src/modules/creator-profile/creatorContext.js";
 
 const client = new BedrockRuntimeClient({ region: process.env.AWS_REGION });
 const MODEL_ID = process.env.BEDROCK_DEFAULT_MODEL;
@@ -21,14 +22,12 @@ async function generateOutline(ideaInput, creatorProfile = null) {
   // Build profile context if available
   let profileContext = "";
   if (creatorProfile) {
+    const ctx = buildCreatorContext(creatorProfile);
     profileContext = `\n\nCreator Profile Context:
-- Niche: ${creatorProfile.niche?.primary || "General"}
-- Content Style: ${creatorProfile.preferences?.contentStyle || "Professional"}
-- Primary Goal: ${creatorProfile.goals?.primaryGoal || "Engagement"}`;
-    
-    if (creatorProfile.preferences?.voiceTone) {
-      profileContext += `\n- Voice Tone: ${creatorProfile.preferences.voiceTone}`;
-    }
+- Niche: ${ctx.niche}
+- Content Style: ${ctx.style}
+- Primary Goal: ${ctx.goal}
+- Voice Tone: ${ctx.tone}`;
   }
 
   const prompt = `Create a structured content outline for a ${contentType} post.
@@ -87,7 +86,8 @@ async function generateDraft(ideaInput, outline, creatorProfile = null) {
   const { targetAudience, contentType, platforms, preferences } = ideaInput;
   const primaryPlatform = Array.isArray(platforms) ? platforms[0] : platforms;
 
-  const tone = preferences?.tone || creatorProfile?.preferences?.voiceTone || "professional";
+  const ctx = buildCreatorContext(creatorProfile);
+  const tone = preferences?.tone || (creatorProfile ? ctx.tone : "professional");
   const length = preferences?.length || "medium";
 
   const sectionsText = outline.sections
@@ -98,11 +98,11 @@ async function generateDraft(ideaInput, outline, creatorProfile = null) {
   let profileContext = "";
   if (creatorProfile) {
     profileContext = `\n\nCreator's Voice & Style:
-- Style: ${creatorProfile.preferences?.contentStyle || "Professional"}
-- Approach: ${creatorProfile.strategy?.contentApproach || "Value-driven"}`;
+- Style: ${ctx.style}
+- Approach: ${ctx.contentApproach}`;
     
-    if (creatorProfile.preferences?.avoidTopics?.length > 0) {
-      profileContext += `\n- Avoid: ${creatorProfile.preferences.avoidTopics.join(", ")}`;
+    if (ctx.avoidTopics.length > 0) {
+      profileContext += `\n- Avoid: ${ctx.avoidTopics.join(", ")}`;
     }
   }
 

@@ -6,6 +6,7 @@ import {
   analyzeTrendCompetition,
   getTrendingTopics,
 } from "./googleTrendsService.js";
+import { buildCreatorContext } from "../src/modules/creator-profile/creatorContext.js";
 
 const client = new BedrockRuntimeClient({ region: process.env.AWS_REGION });
 const MODEL_ID = process.env.BEDROCK_DEFAULT_MODEL;
@@ -30,37 +31,19 @@ function countKeywordMatches(text, keywords) {
 }
 
 function buildProfileContext(creatorProfile) {
-  if (!creatorProfile) return "";
-
-  const nichePrimary = creatorProfile?.niche?.primary || "";
-  const nicheSecondary = creatorProfile?.niche?.secondary || "";
-  const targetAudience = creatorProfile?.targetAudience || "";
-  const primaryGoal = creatorProfile?.goals?.primaryGoal || "";
-  const creatorLevel = creatorProfile?.goals?.creatorLevel || "";
-  const contentStrategy = creatorProfile?.strategy?.contentStrategy || "";
-  const postingFrequency = creatorProfile?.strategy?.postingFrequency || "";
-  const contentPillars = Array.isArray(creatorProfile?.strategy?.contentPillars)
-    ? creatorProfile.strategy.contentPillars.join(", ")
-    : "";
-  const tones = Array.isArray(creatorProfile?.preferences?.tones)
-    ? creatorProfile.preferences.tones.join(", ")
-    : "";
-  const formats = Array.isArray(creatorProfile?.preferences?.formats)
-    ? creatorProfile.preferences.formats.join(", ")
-    : "";
-  const formality = creatorProfile?.preferences?.constraints?.formality || "";
+  const ctx = buildCreatorContext(creatorProfile);
 
   return `\n\nSaved Creator Profile Context (highest priority):
-- Niche: ${nichePrimary}${nicheSecondary ? ` (${nicheSecondary})` : ""}
-- Target audience: ${targetAudience}
-- Goal: ${primaryGoal}
-- Creator level: ${creatorLevel}
-- Strategy: ${contentStrategy}
-- Posting frequency: ${postingFrequency}
-- Content pillars: ${contentPillars}
-- Preferred tones: ${tones}
-- Preferred formats: ${formats}
-- Formality: ${formality}
+- Niche: ${ctx.niche}
+- Target audience: ${ctx.audience}
+- Goal: ${ctx.goal}
+- Creator level: ${ctx.creatorLevel}
+- Strategy: ${ctx.contentStrategy}
+- Posting frequency: ${ctx.postingFrequency}
+- Content pillars: ${ctx.contentPillars.join(", ")}
+- Preferred tones: ${ctx.tone}
+- Preferred formats: ${ctx.formats.join(", ")}
+- Formality: ${ctx.formality}
 
 Use this context to make ideas consistent with the creator's brand and audience.`;
 }

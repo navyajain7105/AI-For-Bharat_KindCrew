@@ -85,16 +85,19 @@ function normalizeContentInput(input) {
 async function createFromIdeaHandler(req, res) {
   try {
     const {
-      userId: payloadUserId,
       ideaId,
-      ideaUserId,
       platforms,
       preferences,
       contentType,
       goal,
     } = req.body;
-    const userId = resolveAuthenticatedUserId(req, res, payloadUserId);
-    if (!userId) return;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     if (!ideaId) {
       return res.status(400).json({
@@ -104,9 +107,8 @@ async function createFromIdeaHandler(req, res) {
     }
 
     // Fetch the original idea from Phase 1.
-    // ideaUserId allows lookup from owner while saving output under current user.
-    const ideaLookupUserId = ideaUserId || userId;
-    const idea = await getIdeaById(ideaLookupUserId, ideaId);
+    // Enforce that the idea belongs to the authenticated user to prevent IDOR.
+    const idea = await getIdeaById(userId, ideaId);
     if (!idea) {
       return res.status(404).json({
         success: false,
@@ -156,9 +158,14 @@ async function createFromIdeaHandler(req, res) {
  */
 async function createFromManualHandler(req, res) {
   try {
-    const { userId: payloadUserId, ...manualInput } = req.body;
-    const userId = resolveAuthenticatedUserId(req, res, payloadUserId);
-    if (!userId) return;
+    const { ...manualInput } = req.body;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     if (!manualInput.topic) {
       return res.status(400).json({
@@ -264,8 +271,13 @@ async function generateCompleteContent(userId, contentInput) {
 async function getContentHandler(req, res) {
   try {
     const { contentId } = req.params;
-    const userId = resolveAuthenticatedUserId(req, res, req.query.userId);
-    if (!userId) return;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     const content = await getContentById(userId, contentId);
 
@@ -295,8 +307,13 @@ async function getContentHandler(req, res) {
  */
 async function getUserContentHandler(req, res) {
   try {
-    const userId = resolveAuthenticatedUserId(req, res, req.query.userId);
-    if (!userId) return;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     const contentList = await getUserContent(userId);
 
@@ -381,9 +398,14 @@ async function generateDraftHandler(req, res) {
  */
 async function regenerateVariantHandler(req, res) {
   try {
-    const { userId: payloadUserId, contentId, platform } = req.body;
-    const userId = resolveAuthenticatedUserId(req, res, payloadUserId);
-    if (!userId) return;
+    const { contentId, platform } = req.body;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     if (!contentId || !platform) {
       return res.status(400).json({
@@ -454,9 +476,14 @@ async function regenerateVariantHandler(req, res) {
  */
 async function updateStatusHandler(req, res) {
   try {
-    const { userId: payloadUserId, contentId, status, scheduledAt } = req.body;
-    const userId = resolveAuthenticatedUserId(req, res, payloadUserId);
-    if (!userId) return;
+    const { contentId, status, scheduledAt } = req.body;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     if (!contentId || !status) {
       return res.status(400).json({

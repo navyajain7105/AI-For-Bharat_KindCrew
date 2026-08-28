@@ -97,9 +97,14 @@ async function getCreatorProfileContext(userId) {
  */
 async function generateIdeas(req, res) {
   try {
-    const { userId: payloadUserId, niche, audience, platforms, goal } = req.body;
-    const userId = resolveAuthenticatedUserId(req, res, payloadUserId);
-    if (!userId) return;
+    const { niche, audience, platforms, goal } = req.body;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     if (!niche || !audience || !platforms) {
       return res.status(400).json({
@@ -162,9 +167,14 @@ async function generateIdeas(req, res) {
  */
 async function refineIdea(req, res) {
   try {
-    const { userId: payloadUserId, roughIdea, audience, platform } = req.body;
-    const userId = resolveAuthenticatedUserId(req, res, payloadUserId);
-    if (!userId) return;
+    const { roughIdea, audience, platform } = req.body;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     if (!roughIdea || !audience || !platform) {
       return res.status(400).json({
@@ -231,9 +241,14 @@ async function refineIdea(req, res) {
  */
 async function evaluateIdea(req, res) {
   try {
-    const { userId: payloadUserId, idea, audience, platform } = req.body;
-    const userId = resolveAuthenticatedUserId(req, res, payloadUserId);
-    if (!userId) return;
+    const { idea, audience, platform } = req.body;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     if (!idea || !audience || !platform) {
       return res.status(400).json({
@@ -298,9 +313,14 @@ async function evaluateIdea(req, res) {
  */
 async function researchIdeaHandler(req, res) {
   try {
-    const { userId: payloadUserId, idea, audience } = req.body;
-    const userId = resolveAuthenticatedUserId(req, res, payloadUserId);
-    if (!userId) return;
+    const { idea, audience } = req.body;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     if (!idea || !audience) {
       return res.status(400).json({
@@ -329,7 +349,6 @@ async function researchIdeaHandler(req, res) {
 async function selectIdea(req, res) {
   try {
     const {
-      userId: payloadUserId,
       topic,
       angle,
       platform,
@@ -340,8 +359,13 @@ async function selectIdea(req, res) {
       scores,
       research,
     } = req.body;
-    const userId = resolveAuthenticatedUserId(req, res, payloadUserId);
-    if (!userId) return;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     if (!topic || !angle || !platform) {
       return res.status(400).json({
@@ -399,8 +423,13 @@ async function selectIdea(req, res) {
  */
 async function getUserIdeasHandler(req, res) {
   try {
-    const userId = resolveAuthenticatedUserId(req, res, req.query.userId);
-    if (!userId) return;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     const ideas = await getUserIdeas(userId);
 
@@ -432,9 +461,14 @@ async function getUserIdeasHandler(req, res) {
  */
 async function enrichIdeaResearchHandler(req, res) {
   try {
-    const { userId: payloadUserId, ideaId } = req.body;
-    const userId = resolveAuthenticatedUserId(req, res, payloadUserId);
-    if (!userId) return;
+    const { ideaId } = req.body;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
 
     if (!ideaId) {
       return res.status(400).json({

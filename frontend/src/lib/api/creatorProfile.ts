@@ -35,10 +35,14 @@ export type CreatorProfileData = {
     contentStrategy: "educational" | "entertainment" | "promotional";
     postingFrequency: string;
     contentPillars: string[];
+    contentApproach?: string;
   };
   preferences?: {
     tones?: string[];
     formats?: string[];
+    contentStyle?: string;
+    voiceTone?: string;
+    avoidTopics?: string[];
     constraints?: {
       emojiUsage?: boolean;
       ctaStrength?: "weak" | "medium" | "strong";
@@ -80,7 +84,7 @@ export async function createCreatorProfile(
       fullData: JSON.stringify(profileData),
     });
 
-    const response = await fetch(`${API_BASE}/creator-profiles`, {
+    const response = await fetch(`${API_BASE}/creator-profile`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -127,7 +131,7 @@ export async function createCreatorProfile(
 export async function getMyProfile(
   token: string,
 ): Promise<CreatorProfile | null> {
-  const response = await fetch(`${API_BASE}/creator-profiles/me/profile`, {
+  const response = await fetch(`${API_BASE}/creator-profile`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -152,18 +156,17 @@ export async function getMyProfile(
  */
 export async function updateCreatorProfile(
   token: string,
-  creatorId: string,
+  _creatorId: string, // Kept for TS signature compatibility but unused
   profileData: Partial<CreatorProfileData>,
 ): Promise<CreatorProfile> {
   console.log("🌐 [API] Updating profile - sending to backend:", {
-    creatorId,
     competitors: profileData.competitors,
     platforms: profileData.platforms,
     niche: profileData.niche,
     fullData: JSON.stringify(profileData),
   });
 
-  const response = await fetch(`${API_BASE}/creator-profiles/${creatorId}`, {
+  const response = await fetch(`${API_BASE}/creator-profile`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
