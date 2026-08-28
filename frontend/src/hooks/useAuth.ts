@@ -9,7 +9,6 @@ export function useAuth() {
   const initializeAuth = useAppStore((state) => state.initializeAuth);
   const logout = useAppStore((state) => state.logout);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
-  const setAuth = useAppStore((state) => state.setAuth);
 
   return {
     userInfo,
@@ -20,6 +19,5 @@ export function useAuth() {
     initializeAuth,
     logout,
     isAuthenticated,
-    setAuth,
   };
 }

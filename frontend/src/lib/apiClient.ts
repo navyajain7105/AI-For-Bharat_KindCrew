@@ -1,27 +1,60 @@
-import axios from "axios";
-import { API_URL } from "./constants";
+import { buildApiUrl } from "./constants";
+import { clearAccessToken, getAccessToken, setAccessToken } from "./authToken";
 
-const apiClient = axios.create({
-  baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-  timeout: 10000, // 10 seconds timeout
-});
+let refreshPromise: Promise<string | null> | null = null;
 
-// Response interceptor for error handling
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response) {
-      console.error("API Error:", error.response.status, error.response.data);
-    } else if (error.request) {
-      console.error("Network Error: No response from server");
-    } else {
-      console.error("Request Error:", error.message);
-    }
-    return Promise.reject(error);
-  },
-);
+async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(buildApiUrl("/api/auth/refresh"), {
+      method: "POST",
+      credentials: "include",
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        const data = (await response.json()) as {
+          data?: { accessToken?: string };
+        };
+        const token = data.data?.accessToken || null;
+        setAccessToken(token);
+        return token;
+      })
+      .catch(() => null)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
 
-export default apiClient;
+  return refreshPromise;
+}
+
+export async function authenticatedFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  const token = getAccessToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(input, {
+    ...init,
+    headers,
+    credentials: "include",
+  });
+
+  if (response.status !== 401 || String(input).includes("/api/auth/refresh")) {
+    return response;
+  }
+
+  const refreshedToken = await refreshAccessToken();
+  if (!refreshedToken) {
+    clearAccessToken();
+    return response;
+  }
+
+  headers.set("Authorization", `Bearer ${refreshedToken}`);
+  return fetch(input, {
+    ...init,
+    headers,
+    credentials: "include",
+  });
+}

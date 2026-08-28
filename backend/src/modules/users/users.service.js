@@ -103,12 +103,21 @@ export class UsersService {
     return this.createUser(identity, name, additionalData);
   }
 
-  async resolveAuthenticatedUser(identity, userData = {}) {
+  async resolveAuthenticatedUser(identity, userData = {}, options = {}) {
     const normalizedIdentity = normalizeProviderIdentity(identity);
     const providerUser = await this.repository.findByProviderIdentity(
       normalizedIdentity.provider,
       normalizedIdentity.providerUserId,
     );
+
+    if (providerUser && options.recordLogin) {
+      await this.repository.updateOnLogin(
+        providerUser.userId,
+        this.getLoginUpdates(userData.name, normalizedIdentity, userData),
+        normalizedIdentity.provider,
+      );
+      return this.repository.findById(providerUser.userId);
+    }
 
     if (providerUser) return providerUser;
 

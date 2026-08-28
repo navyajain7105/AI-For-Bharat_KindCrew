@@ -1,6 +1,9 @@
 import { StateCreator } from "zustand";
-import { extractUserFromToken } from "@/lib/jwtDecode";
-import { API_URL } from "@/lib/constants";
+import { buildApiUrl, API_URL } from "@/lib/constants";
+import {
+  clearAccessToken,
+  setAccessToken,
+} from "@/lib/authToken";
 
 type UserInfo = {
   userId: string;
@@ -18,7 +21,6 @@ export type AuthSlice = {
   authReady: boolean;
   loading: boolean;
   error: string | null;
-  setAuth: (payload: { token: string; user: UserInfo }) => void;
   clearAuth: () => void;
   initializeAuth: () => Promise<void>;
   logout: () => Promise<void>;
@@ -35,50 +37,53 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (
   loading: false,
   error: null,
 
-  setAuth: ({ token, user }) =>
-    set({
-      token,
-      userInfo: user,
-      authReady: true,
-      loading: false,
-      error: null,
-    }),
-
   clearAuth: () =>
-    set({
-      token: null,
-      userInfo: null,
-      authReady: true,
-      loading: false,
-      error: null,
-    }),
+    (() => {
+      clearAccessToken();
+      set({
+        token: null,
+        userInfo: null,
+        authReady: true,
+        loading: false,
+        error: null,
+      });
+    })(),
 
   initializeAuth: async () => {
     const currentState = get();
-    const token = currentState.token;
-
-    // Skip if already authenticated with valid user info
-    if (currentState.authReady && currentState.userInfo && token) {
-      return;
-    }
-
-    if (!token) {
-      set({ authReady: true, userInfo: null, loading: false, error: null });
+    if (currentState.authReady) {
       return;
     }
 
     set({ loading: true, error: null });
 
     try {
-      // Decode JWT to extract user info (no API call needed)
-      const user = extractUserFromToken(token);
-
-      if (!user) {
+      const response = await fetch(buildApiUrl("/api/auth/session"), {
+        credentials: "include",
+      });
+      if (!response.ok) {
         get().clearAuth();
         return;
       }
 
-      set({ userInfo: user, authReady: true, loading: false, error: null });
+      const data = (await response.json()) as {
+        data?: { accessToken?: string; user?: UserInfo };
+      };
+      const accessToken = data.data?.accessToken;
+      const user = data.data?.user;
+      if (!accessToken || !user) {
+        get().clearAuth();
+        return;
+      }
+
+      setAccessToken(accessToken);
+      set({
+        token: accessToken,
+        userInfo: user,
+        authReady: true,
+        loading: false,
+        error: null,
+      });
     } catch (error: unknown) {
       const message =
         typeof error === "object" && error !== null && "message" in error
@@ -92,6 +97,7 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (
         loading: false,
         error: message,
       });
+      clearAccessToken();
     }
   },
 

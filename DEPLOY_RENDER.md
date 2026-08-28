@@ -80,9 +80,6 @@ COGNITO_DOMAIN=https://ap-south-1avgaojlyl.auth.ap-south-1.amazoncognito.com
 COGNITO_REGION=ap-south-1
 COGNITO_REDIRECT_URI=https://kindcrew-api.onrender.com/api/auth/callback
 
-# JWT Secret
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production-hey-navya-rishabh-ved
-
 # DynamoDB Tables
 DYNAMODB_USERS_TABLE=KindCrew-Users
 DYNAMODB_CREATOR_PROFILES_TABLE=KindCrew-CreatorProfiles

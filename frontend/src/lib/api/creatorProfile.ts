@@ -3,6 +3,7 @@
  * Handles all API calls related to creator profiles
  */
 import { API_URL } from "@/lib/constants";
+import { authenticatedFetch as fetch } from "@/lib/apiClient";
 
 const API_BASE = `${API_URL.replace(/\/$/, "").replace(/\/api$/, "")}/api`;
 

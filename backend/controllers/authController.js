@@ -1,12 +1,15 @@
 import userService from "../services/user.service.js";
-import { getAuthenticatedIdentity } from "../src/modules/auth/auth.identity.js";
 import creatorProfileService from "../services/creatorProfile.service.js";
 import {
   exchangeCodeForTokens,
-  getCognitoUser,
-  generateToken,
   getAuthorizationUrl,
+  refreshCognitoTokens,
 } from "../utils/cognito.js";
+import {
+  getVerifiedCognitoIdentity,
+} from "../src/modules/auth/auth.identity.js";
+import { verifyCognitoIdToken } from "../src/modules/auth/cognitoTokenVerifier.js";
+import { errorResponse } from "../utils/response.js";
 import crypto from "crypto";
 
 const getFrontendBaseUrl = (req) => {
@@ -74,51 +77,34 @@ export const handleCallback = async (req, res) => {
       process.env.COGNITO_REDIRECT_URI,
     );
 
-    const cognitoUser = await getCognitoUser(tokens.idToken);
-
-    if (!cognitoUser) {
-      return res.redirect(`${frontendBaseUrl}?error=invalid_token`);
-    }
-
     let user;
     try {
-      const identity = getAuthenticatedIdentity(cognitoUser);
-      user = await userService.findOrCreateUser(
-        identity.email,
-        cognitoUser.name,
-        identity.provider,
-        {
-          profileImage: cognitoUser.profileImage,
-          cognitoId: identity.providerUserId,
-          givenName: cognitoUser.givenName,
-          familyName: cognitoUser.familyName,
-          emailVerified: identity.emailVerified,
-          locale: cognitoUser.locale,
-        },
+      const claims = await verifyCognitoIdToken(
+        tokens.idToken,
+        req.session.oauthNonce,
+      );
+      const identity = getVerifiedCognitoIdentity(claims);
+      user = await userService.resolveAuthenticatedUser(identity, {
+        name: claims.name || claims.email,
+        profileImage: claims.picture || null,
+        givenName: claims.given_name || null,
+        familyName: claims.family_name || null,
+        locale: claims.locale || null,
+      }, { recordLogin: true });
+      await userService.addAuthProvider(
+        user.userId,
+        "cognito",
+        identity.providerUserId,
       );
     } catch (dbError) {
       if (handleIdentityLinkingRequired(res, dbError)) return;
 
       console.error("Database error during callback:", dbError.message);
-      user = {
-        userId: `cognito-${cognitoUser.cognitoId}`,
-        email: cognitoUser.email,
-        name: cognitoUser.name,
-        profileImage: cognitoUser.profileImage,
-        cognitoId: cognitoUser.cognitoId,
-        givenName: cognitoUser.givenName,
-        familyName: cognitoUser.familyName,
-        emailVerified: cognitoUser.emailVerified,
-      };
+      return res.status(503).json({
+        success: false,
+        error: "Authentication could not be completed. Please try again.",
+      });
     }
-
-    const apiToken = generateToken(
-      user.userId,
-      user.email,
-      user.name,
-      user.givenName,
-      user.familyName,
-    );
 
     req.session.user = {
       userId: user.userId,
@@ -126,7 +112,10 @@ export const handleCallback = async (req, res) => {
       name: user.name,
       profileImage: user.profileImage,
     };
-    req.session.token = apiToken;
+    req.session.auth = {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
 
     delete req.session.oauthState;
     delete req.session.oauthNonce;
@@ -141,12 +130,49 @@ export const handleCallback = async (req, res) => {
       // Default onboarding when profile lookup fails.
     }
 
-    const redirectUrl = `${frontendBaseUrl}${redirectPath}?token=${apiToken}`;
+    const redirectUrl = `${frontendBaseUrl}${redirectPath}`;
     res.redirect(redirectUrl);
   } catch (error) {
     console.error("Callback failed:", error.message);
     const frontendBaseUrl = getFrontendBaseUrl(req);
     res.redirect(`${frontendBaseUrl}?error=auth_failed`);
+  }
+};
+
+export const getSession = (req, res) => {
+  if (!req.session.user || !req.session.auth?.accessToken) {
+    return res.status(401).json(errorResponse("Unauthorized"));
+  }
+
+  return res.json({
+    success: true,
+    data: {
+      user: req.session.user,
+      accessToken: req.session.auth.accessToken,
+    },
+  });
+};
+
+export const refreshSession = async (req, res) => {
+  try {
+    const refreshToken = req.session.auth?.refreshToken;
+    if (!refreshToken) {
+      return res.status(401).json(errorResponse("Unauthorized"));
+    }
+
+    const tokens = await refreshCognitoTokens(refreshToken);
+    req.session.auth = {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+
+    return res.json({
+      success: true,
+      data: { accessToken: tokens.accessToken },
+    });
+  } catch (error) {
+    console.error("Cognito session refresh failed:", error.message);
+    return res.status(401).json(errorResponse("Unauthorized"));
   }
 };
 

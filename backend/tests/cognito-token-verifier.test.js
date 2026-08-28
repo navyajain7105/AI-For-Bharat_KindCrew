@@ -114,6 +114,21 @@ test("rejects wrong token use, client, missing subject, and unknown kid", async 
   );
 });
 
+test("validates the OAuth nonce when one is expected", async () => {
+  const { verifier } = makeVerifier();
+  const token = createToken({ nonce: "nonce-1" });
+
+  await verifier.verify(token, { expectedNonce: "nonce-1" });
+  await assert.rejects(
+    verifier.verify(token, { expectedNonce: "nonce-2" }),
+    /Invalid Cognito token nonce/,
+  );
+  await assert.rejects(
+    verifier.verify(createToken(), { expectedNonce: "nonce-1" }),
+    /Invalid Cognito token nonce/,
+  );
+});
+
 test("supports key rotation by resolving each token kid", async () => {
   const { verifier, requestedKids } = makeVerifier({
     "key-1": publicKey,

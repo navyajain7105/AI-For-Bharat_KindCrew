@@ -1,5 +1,6 @@
 // Phase 1: Ideation & Research API Client
 import { API_URL } from "@/lib/constants";
+import { authenticatedFetch as fetch } from "@/lib/apiClient";
 
 const API_BASE_URL = API_URL || "";
 

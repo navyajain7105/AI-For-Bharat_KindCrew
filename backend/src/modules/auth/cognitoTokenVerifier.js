@@ -60,7 +60,7 @@ export class CognitoTokenVerifier {
       });
   }
 
-  async verify(token) {
+  async verify(token, { expectedNonce } = {}) {
     if (typeof token !== "string" || !token.trim()) {
       throw new Error("Cognito token is required");
     }
@@ -116,6 +116,10 @@ export class CognitoTokenVerifier {
       throw new Error("Cognito token is missing sub");
     }
 
+    if (expectedNonce !== undefined && claims.nonce !== expectedNonce) {
+      throw new Error("Invalid Cognito token nonce");
+    }
+
     return claims;
   }
 }
@@ -126,10 +130,18 @@ export function createCognitoTokenVerifier(options = {}) {
 }
 
 let defaultVerifier;
+let defaultIdTokenVerifier;
 
 export async function verifyCognitoToken(token) {
   defaultVerifier ||= createCognitoTokenVerifier();
   return defaultVerifier.verify(token);
+}
+
+export async function verifyCognitoIdToken(token, expectedNonce) {
+  defaultIdTokenVerifier ||= createCognitoTokenVerifier({
+    expectedTokenUse: "id",
+  });
+  return defaultIdTokenVerifier.verify(token, { expectedNonce });
 }
 
 export { ACCEPTED_ALGORITHMS, getCognitoConfiguration };

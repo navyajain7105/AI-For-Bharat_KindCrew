@@ -28,11 +28,9 @@ export const useAppStore = create<AppState>()(
       ...createContentSlice(...args),
     }),
     {
-      name: "kindcrew-app-storage",
+      name: "kindcrew-app-storage-v2",
       partialize: (state) => ({
-        token: state.token,
         userInfo: state.userInfo,
-        authReady: state.authReady,
         creatorProfile: state.creatorProfile,
         hasProfile: state.hasProfile,
         profileChecked: state.profileChecked,

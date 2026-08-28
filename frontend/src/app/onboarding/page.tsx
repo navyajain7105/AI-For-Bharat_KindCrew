@@ -4,7 +4,6 @@ import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppStore } from "@/store/useAppStore";
-import { extractUserFromToken } from "@/lib/jwtDecode";
 import { toast } from "sonner";
 import { FiInfo } from "react-icons/fi";
 import {
@@ -20,7 +19,7 @@ function OnboardingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isEditMode = searchParams.get("edit") === "true";
-  const { token, isAuthenticated, authReady, initializeAuth, setAuth } =
+  const { token, isAuthenticated, authReady, initializeAuth } =
     useAuth();
   const {
     createProfile,
@@ -76,23 +75,6 @@ function OnboardingPageContent() {
     notes: "",
   });
   const [profileLoaded, setProfileLoaded] = useState(false);
-
-  // Handle token from OAuth callback
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlToken = urlParams.get("token");
-
-    if (urlToken) {
-      const user = extractUserFromToken(urlToken);
-
-      if (user) {
-        setAuth({ token: urlToken, user });
-        router.replace("/onboarding");
-      } else {
-        router.replace("/");
-      }
-    }
-  }, [router, setAuth]);
 
   // Redirect if already has profile or not authenticated
   useEffect(() => {

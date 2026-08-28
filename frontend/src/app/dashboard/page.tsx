@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppStore } from "@/store/useAppStore";
-import { extractUserFromToken } from "@/lib/jwtDecode";
 import { getUserIdeas, IdeaBrief } from "@/lib/api/ideation";
 import { getUserContent } from "@/lib/api/content";
 import SetupBanner from "@/components/SetupBanner";
@@ -24,7 +23,6 @@ export default function DashboardPage() {
     authReady,
     initializeAuth,
     isAuthenticated,
-    setAuth,
     token,
   } = useAuth();
 
@@ -69,23 +67,6 @@ export default function DashboardPage() {
     }
     return "0.0";
   };
-
-  // Handle token from OAuth callback
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlToken = urlParams.get("token");
-
-    if (urlToken) {
-      const user = extractUserFromToken(urlToken);
-
-      if (user) {
-        setAuth({ token: urlToken, user });
-        router.replace("/dashboard");
-      } else {
-        router.replace("/");
-      }
-    }
-  }, [router, setAuth]);
 
   // Initialize auth on mount
   useEffect(() => {
