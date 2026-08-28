@@ -20,7 +20,14 @@ export type CreatorProfileData = {
   targetAudience: string;
   platforms?: Platform[];
   goals: {
-    primaryGoal: "growth" | "monetization" | "engagement" | "brand-building";
+    primaryGoal:
+      | "growth"
+      | "monetization"
+      | "engagement"
+      | "brand-building"
+      | "community-building"
+      | "personal-brand"
+      | "thought-leadership";
     creatorLevel: "beginner" | "intermediate" | "advanced";
   };
   strategy: {

@@ -15,7 +15,7 @@
  * @property {Array} platforms - Social media platforms
  * @property {string} targetAudience - Primary audience segment for content
  * @property {Object} goals - Creator goals and level
- * @property {string} goals.primaryGoal - Primary goal (growth, monetization, engagement)
+ * @property {string} goals.primaryGoal - Primary goal
  * @property {string} goals.creatorLevel - Level (beginner, intermediate, advanced)
  * @property {Object} strategy - Content strategy
  * @property {string} strategy.contentStrategy - Strategy type (educational, entertainment, promotional)
@@ -146,9 +146,15 @@ class CreatorProfile {
 
     if (
       data.goals &&
-      !["growth", "monetization", "engagement", "brand-building"].includes(
-        data.goals.primaryGoal,
-      )
+      ![
+        "growth",
+        "monetization",
+        "engagement",
+        "brand-building",
+        "community-building",
+        "personal-brand",
+        "thought-leadership",
+      ].includes(data.goals.primaryGoal)
     ) {
       errors.push("Invalid primary goal");
     }
