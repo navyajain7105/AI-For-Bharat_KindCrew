@@ -1,5 +1,6 @@
 import { buildApiUrl } from "./constants";
 import { clearAccessToken, getAccessToken, setAccessToken } from "./authToken";
+import { toast } from "sonner";
 
 let refreshPromise: Promise<string | null> | null = null;
 
@@ -48,6 +49,12 @@ export async function authenticatedFetch(
   const refreshedToken = await refreshAccessToken();
   if (!refreshedToken) {
     clearAccessToken();
+    if (typeof window !== "undefined") {
+      toast.error("Your session has expired. Please sign in again.");
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1500);
+    }
     return response;
   }
 

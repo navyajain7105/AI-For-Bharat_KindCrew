@@ -4,6 +4,7 @@ import {
   clearAccessToken,
   setAccessToken,
 } from "@/lib/authToken";
+import { toast } from "sonner";
 
 type UserInfo = {
   userId: string;
@@ -63,6 +64,9 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (
       });
       if (!response.ok) {
         get().clearAuth();
+        if (typeof window !== "undefined" && window.location.pathname !== "/") {
+          toast.error("Your session has expired. Please sign in again.");
+        }
         return;
       }
 

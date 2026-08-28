@@ -10,6 +10,7 @@ export function useCreatorProfile() {
   const createProfile = useAppStore((state) => state.createProfile);
   const updateProfile = useAppStore((state) => state.updateProfile);
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
+  const skipOnboarding = useAppStore((state) => state.skipOnboarding);
 
   return {
     creatorProfile,
@@ -21,5 +22,6 @@ export function useCreatorProfile() {
     createProfile,
     updateProfile,
     completeOnboarding,
+    skipOnboarding,
   };
 }

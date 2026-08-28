@@ -5,7 +5,9 @@ import {
   handleLogout,
   getSession,
   refreshSession,
+  skipOnboarding,
 } from "../controllers/authController.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -21,5 +23,8 @@ router.get("/logout", handleLogout);
 // Bootstrap and refresh Cognito access tokens without URL transport.
 router.get("/session", getSession);
 router.post("/refresh", refreshSession);
+
+// Persist user preference to skip onboarding (FTUX)
+router.post("/skip-onboarding", authMiddleware, skipOnboarding);
 
 export default router;

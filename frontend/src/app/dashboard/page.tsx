@@ -206,7 +206,7 @@ export default function DashboardPage() {
             className="text-lg font-semibold mb-2"
             style={{ color: "var(--color-text)" }}
           >
-            Ideation
+            Research Ideas
           </h3>
           <p
             className="text-sm"
@@ -299,7 +299,7 @@ export default function DashboardPage() {
             className="text-lg font-semibold mb-2"
             style={{ color: "var(--color-text)" }}
           >
-            Planning
+            Schedule Content
           </h3>
           <p
             className="text-sm"
@@ -350,19 +350,18 @@ export default function DashboardPage() {
             Loading ideas...
           </p>
         ) : recentIdeas.length === 0 ? (
-          <div className="flex items-center justify-between gap-3">
-            <p style={{ color: "var(--color-text-secondary)" }}>
-              No saved ideas yet. Generate your first one from Ideation.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border border-dashed border-slate-800 rounded-xl bg-slate-950/20">
+            <div>
+              <p className="font-medium text-white">No ideas saved.</p>
+              <p className="text-sm mt-1 text-slate-400">
+                Generate personalized ideas tailored to your creator profile.
+              </p>
+            </div>
             <button
               onClick={() => router.push("/ideation")}
-              className="px-3 py-2 rounded-lg text-sm font-medium"
-              style={{
-                backgroundColor: "var(--color-text)",
-                color: "var(--color-background)",
-              }}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-slate-950 hover:bg-slate-200 transition-colors whitespace-nowrap"
             >
-              Start ideation
+              Generate Ideas
             </button>
           </div>
         ) : (
@@ -446,20 +445,27 @@ export default function DashboardPage() {
             Loading content...
           </p>
         ) : recentContent.length === 0 ? (
-          <div className="flex items-center justify-between gap-3">
-            <p style={{ color: "var(--color-text-secondary)" }}>
-              No content yet. Generate your first content from Content Studio.
-            </p>
-            <button
-              onClick={() => router.push("/content")}
-              className="px-3 py-2 rounded-lg text-sm font-medium"
-              style={{
-                backgroundColor: "var(--color-text)",
-                color: "var(--color-background)",
-              }}
-            >
-              Create content
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border border-dashed border-slate-800 rounded-xl bg-slate-950/20">
+            <div>
+              <p className="font-medium text-white">No content yet.</p>
+              <p className="text-sm mt-1 text-slate-400">
+                Create single posts or multi-platform threads with our studio.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => router.push("/ideation/my-ideas")}
+                className="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-700 text-white hover:bg-slate-900 transition-colors whitespace-nowrap"
+              >
+                Explore Ideas
+              </button>
+              <button
+                onClick={() => router.push("/content")}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-slate-950 hover:bg-slate-200 transition-colors whitespace-nowrap"
+              >
+                Create Content
+              </button>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

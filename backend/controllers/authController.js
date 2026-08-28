@@ -121,13 +121,17 @@ export const handleCallback = async (req, res) => {
     delete req.session.oauthNonce;
 
     let redirectPath = "/onboarding";
-    try {
-      const profile = await creatorProfileService.getProfileByUserId(
-        user.userId,
-      );
-      if (profile) redirectPath = "/dashboard";
-    } catch (_error) {
-      // Default onboarding when profile lookup fails.
+    if (user.settings?.onboardingSkipped === true) {
+      redirectPath = "/dashboard";
+    } else {
+      try {
+        const profile = await creatorProfileService.getProfileByUserId(
+          user.userId,
+        );
+        if (profile) redirectPath = "/dashboard";
+      } catch (_error) {
+        // Expected when user has not created a profile yet.
+      }
     }
 
     const redirectUrl = `${frontendBaseUrl}${redirectPath}`;
@@ -201,5 +205,28 @@ export const handleLogout = (req, res) => {
     console.error("Logout failed:", error.message);
     const frontendBaseUrl = getFrontendBaseUrl(req);
     res.redirect(frontendBaseUrl);
+  }
+};
+
+export const skipOnboarding = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    await userService.updateUserSettings(userId, { onboardingSkipped: true });
+
+    if (req.session.user) {
+      req.session.user.settings = {
+        ...(req.session.user.settings || {}),
+        onboardingSkipped: true,
+      };
+    }
+
+    res.json({ success: true, message: "Onboarding skipped status saved" });
+  } catch (error) {
+    console.error("skipOnboarding error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 };

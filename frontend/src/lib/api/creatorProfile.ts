@@ -213,3 +213,22 @@ export async function completeOnboarding(
   const data = await response.json();
   return data.data;
 }
+
+/**
+ * Persist onboarding skip status (account metadata)
+ */
+export async function skipOnboarding(token: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE}/auth/skip-onboarding`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to persist onboarding skip");
+  }
+
+  return true;
+}

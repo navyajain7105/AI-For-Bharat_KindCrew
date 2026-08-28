@@ -113,14 +113,27 @@ AI features are powered by AWS Bedrock using the Converse API.
 *   **Frontend Settings UI:** Replaced `/settings` placeholder page with a tabbed interface allowing full customization of niches, AI tone guidelines, formalities, CTAs, and content strategy metrics.
 *   **Onboarding Alignment:** Aligned Onboarding Zero-Idea generator forms to pre-populate parameters from the saved Creator Profile if available in the Zustand store.
 
-## 18. Pending Work & Deferred Decisions
-*   **Uniqueness DB Constraint:** Application-level unique check enforces 1-to-1 profiles per user and returns `HTTP 409`. Database-level atomic unique constraints are deferred to a future data-layer migrations phase.
-*   **Render Reachability:** Debug Singapore Singapore Render gateway routing timeout issues.
+## 18. Checkpoint 2C — Completed Work & FTUX Architecture
+*   **Onboarding Skip Persistence:** Configured backend route `POST /api/auth/skip-onboarding` mapping to `usersService.updateUserSettings`. Saving `onboardingSkipped = true` directly under user account settings prevents redirect loops when authenticating user accounts without profile records.
+*   **Lightweight 2-Step Onboarding Wizard:** Replaced the 1,500-line vertical questionnaire with a paginated 2-step setup:
+    *   *Step 1 (Focus):* Collects Primary Niche and Target Audience.
+    *   *Step 2 (Channels):* Collects active distribution platforms.
+*   **Progressive Profile Completion:** Derived setup checklist dynamically on dashboard `SetupBanner.tsx` showing progress indicator (e.g. `Account Setup`, `Niche Focus`, `Audience Target`, `Platforms Linked`, `Content Strategy`, `Brand Voice`). Users can complete strategic fields later in settings.
+*   **Actionable Empty States:** Updated empty dashboard cards for content drafts and ideas with explicit calls-to-action (e.g. `Create Content`, `Generate Ideas`, `Explore Ideas`) routing users straight to modules.
+*   **Session Expiration UX Interceptors:** Implemented double-layered token checks:
+    *   *Init failure:* Shows `"Your session has expired. Please sign in again."` toast in `authSlice.ts` and redirects to root.
+    *   *Fetch failure:* Catches 401s during active requests inside `apiClient.ts` to log out and redirect with a clean expired alert.
+*   **Test Suite Extension:** Added new assertions to `creator-profile.test.js` checking skipOnboarding action persistence, dashboard landing redirects, and CreatorContext defaults. All 28 backend test cases pass.
 
-## 19. Next Recommended Step
+## 19. Pending Work & Deferred Decisions
+*   **Render Reachability:** Troubleshoot gateway routing timeouts in Singapore region.
+*   **Database Migrations:** Enforce atomic uniques at DB-level.
+
+## 20. Next Recommended Step
 1.  Verify the Render port binding issue by explicitly listening on `0.0.0.0` in `backend/server.js`.
-2.  Begin Checkpoint 2C: Onboarding UI and workflow enhancements.
+2.  Begin Phase 3: Research / Ideation module features.
 
-## 20. Change Log
+## 21. Change Log
+*   **2026-08-28:** Completed Checkpoint 2C: Implemented paginated 2-step onboarding wizard, skip persistence settings, dashboard derived progress checklists, actionable empty states, and central session expiration toast alerts. All 28 tests passing.
 *   **2026-08-28:** Completed Checkpoint 2B: Implemented modular Creator Profile system, secured ownership checks, patched IDOR vulnerabilities on content ideas, integrated unified CreatorContext in AI services, and built the frontend Settings management UI. All 26 test cases passing.
 *   **2026-08-28:** Created initial `context.md` verifying the completed Cognito Authentication Revamp (Checkpoint 2A), verified the Next.js compilation, and analyzed the Render deployment timeout.

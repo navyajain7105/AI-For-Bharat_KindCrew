@@ -272,3 +272,50 @@ test("Step 15 - Test 16-22: AI CreatorContext extraction & safety sanitization",
   assert.equal(emptyContext.tone, "Professional");
   assert.equal(emptyContext.creatorLevel, "beginner");
 });
+
+import { skipOnboarding } from "../controllers/authController.js";
+import userService from "../services/user.service.js";
+
+test("Checkpoint 2C - Test 1 & 2: skipOnboarding updates user settings and session", async () => {
+  const req = {
+    userId: "test-user-id",
+    session: {
+      user: {
+        userId: "test-user-id",
+      },
+    },
+  };
+  const res = makeMockResponse();
+
+  const originalUpdate = userService.updateUserSettings;
+  let updatedSettings = null;
+  userService.updateUserSettings = async (userId, settings) => {
+    updatedSettings = settings;
+    return { userId, settings };
+  };
+
+  try {
+    await skipOnboarding(req, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.success, true);
+    assert.deepEqual(updatedSettings, { onboardingSkipped: true });
+    assert.equal(req.session.user.settings.onboardingSkipped, true);
+  } finally {
+    userService.updateUserSettings = originalUpdate;
+  }
+});
+
+test("Checkpoint 2C - Test 3: CreatorContext fallback checks for minimum onboarding profile", () => {
+  const minimumProfile = {
+    niche: { primary: "fitness" },
+    targetAudience: "students",
+    platforms: [{ name: "linkedin", handle: "@fit", active: true }],
+  };
+
+  const context = buildCreatorContext(minimumProfile);
+  assert.equal(context.niche, "fitness");
+  assert.equal(context.audience, "students");
+  assert.deepEqual(context.formats, ["static"]);
+  assert.equal(context.tone, "Professional");
+  assert.equal(context.creatorLevel, "beginner");
+});

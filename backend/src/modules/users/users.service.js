@@ -153,7 +153,6 @@ export class UsersService {
       givenName: additionalData.givenName,
       familyName: additionalData.familyName,
       locale: additionalData.locale,
-      lastLogin: new Date().toISOString(),
     };
   }
 
@@ -202,6 +201,18 @@ export class UsersService {
     ];
 
     return this.repository.update(userId, { authProviders });
+  }
+
+  async updateUserSettings(userId, settings) {
+    const user = await this.repository.findById(userId);
+    if (!user) throw new Error("User not found");
+
+    const mergedSettings = {
+      ...(user.settings || {}),
+      ...settings,
+    };
+
+    return this.repository.update(userId, { settings: mergedSettings });
   }
 }
 
