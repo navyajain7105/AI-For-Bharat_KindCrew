@@ -12,7 +12,10 @@ import docClient, {
   publishingSchedulesTable,
   scheduledPostsTable,
 } from "../config/dynamodb.js";
-import { v4 as uuidv4 } from "uuid";
+
+export function filterDefinedEntries(values) {
+  return Object.entries(values).filter(([, value]) => value !== undefined);
+}
 
 /**
  * DynamoDB Service for KindCrew
@@ -47,11 +50,11 @@ class DynamoDBService {
 
   // Create user
   async createUser(userData) {
-    const userId = uuidv4();
     const now = new Date().toISOString();
 
     const user = {
-      userId,
+      ...userData,
+      userId: userData.userId,
       email: userData.email,
       name: userData.name,
       profileImage: userData.profileImage || null,
@@ -60,13 +63,17 @@ class DynamoDBService {
       emailVerified: userData.emailVerified || false,
       locale: userData.locale || null,
       authProviders: userData.authProviders || [],
-      role: userData.role || "user",
-      status: userData.status || "active",
+      role: "user",
+      status: "active",
       loginHistory: userData.loginHistory || [],
-      createdAt: now,
-      lastLogin: now,
-      updatedAt: now,
+      createdAt: userData.createdAt || now,
+      lastLogin: userData.lastLogin || now,
+      updatedAt: userData.updatedAt || now,
     };
+
+    if (!user.userId) {
+      throw new Error("userId is required when creating a user");
+    }
 
     await docClient.send(
       new PutCommand({
@@ -106,6 +113,19 @@ class DynamoDBService {
     return result.Items?.[0];
   }
 
+  // Find a user by a stored provider identity. No table index is changed here.
+  async getUserByProviderIdentity(provider, providerUserId) {
+    const users = await this.scanAllItems(usersTable);
+
+    return users.find((user) =>
+      (user.authProviders || []).some(
+        (identity) =>
+          identity.type === provider &&
+          (identity.providerId || identity.providerUserId) === providerUserId,
+      ),
+    );
+  }
+
   async getAllUsers(limit = null) {
     return this.scanAllItems(usersTable, limit);
   }
@@ -116,15 +136,14 @@ class DynamoDBService {
     const expressionAttributeNames = {};
     const expressionAttributeValues = {};
 
-    Object.entries(updates)
-      .filter(([, value]) => value !== undefined)
+    filterDefinedEntries(updates)
       .forEach(([key, value], index) => {
-      const attrName = `#attr${index}`;
-      const attrValue = `:val${index}`;
-      updateExpression.push(`${attrName} = ${attrValue}`);
-      expressionAttributeNames[attrName] = key;
-      expressionAttributeValues[attrValue] = value;
-    });
+        const attrName = `#attr${index}`;
+        const attrValue = `:val${index}`;
+        updateExpression.push(`${attrName} = ${attrValue}`);
+        expressionAttributeNames[attrName] = key;
+        expressionAttributeValues[attrValue] = value;
+      });
 
     updateExpression.push("#updatedAt = :updatedAt");
     expressionAttributeNames["#updatedAt"] = "updatedAt";
@@ -151,15 +170,14 @@ class DynamoDBService {
     const expressionAttributeValues = {};
 
     // Add standard updates
-    Object.entries(updates)
-      .filter(([, value]) => value !== undefined)
+    filterDefinedEntries(updates)
       .forEach(([key, value], index) => {
-      const attrName = `#attr${index}`;
-      const attrValue = `:val${index}`;
-      updateExpression.push(`${attrName} = ${attrValue}`);
-      expressionAttributeNames[attrName] = key;
-      expressionAttributeValues[attrValue] = value;
-    });
+        const attrName = `#attr${index}`;
+        const attrValue = `:val${index}`;
+        updateExpression.push(`${attrName} = ${attrValue}`);
+        expressionAttributeNames[attrName] = key;
+        expressionAttributeValues[attrValue] = value;
+      });
 
     // Add new login to history
     const loginEntry = {

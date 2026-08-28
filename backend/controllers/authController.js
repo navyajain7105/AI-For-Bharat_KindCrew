@@ -1,4 +1,5 @@
 import userService from "../services/user.service.js";
+import { getAuthenticatedIdentity } from "../src/modules/auth/auth.identity.js";
 import creatorProfileService from "../services/creatorProfile.service.js";
 import {
   exchangeCodeForTokens,
@@ -15,6 +16,17 @@ const getFrontendBaseUrl = (req) => {
   }
 
   return `${req.protocol}://${req.get("host")}`;
+};
+
+export const handleIdentityLinkingRequired = (res, error) => {
+  if (error?.code !== "IDENTITY_LINKING_REQUIRED") return false;
+
+  res.status(409).json({
+    success: false,
+    code: "IDENTITY_LINKING_REQUIRED",
+    message: "This email is already associated with another login method.",
+  });
+  return true;
 };
 
 /**
@@ -70,20 +82,23 @@ export const handleCallback = async (req, res) => {
 
     let user;
     try {
+      const identity = getAuthenticatedIdentity(cognitoUser);
       user = await userService.findOrCreateUser(
-        cognitoUser.email,
+        identity.email,
         cognitoUser.name,
-        cognitoUser.identityProvider,
+        identity.provider,
         {
           profileImage: cognitoUser.profileImage,
-          cognitoId: cognitoUser.cognitoId,
+          cognitoId: identity.providerUserId,
           givenName: cognitoUser.givenName,
           familyName: cognitoUser.familyName,
-          emailVerified: cognitoUser.emailVerified,
+          emailVerified: identity.emailVerified,
           locale: cognitoUser.locale,
         },
       );
     } catch (dbError) {
+      if (handleIdentityLinkingRequired(res, dbError)) return;
+
       console.error("Database error during callback:", dbError.message);
       user = {
         userId: `cognito-${cognitoUser.cognitoId}`,
