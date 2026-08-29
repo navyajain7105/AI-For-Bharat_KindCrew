@@ -5,9 +5,19 @@ import { useRouter } from "next/navigation";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useIdeation } from "@/hooks/useIdeation";
-import { FiArrowLeft, FiArrowRight, FiEdit3, FiTarget } from "react-icons/fi";
+import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { Badge } from "@/components/ui/Badge";
+import {
+  FiArrowLeft,
+  FiArrowRight,
+  FiEdit3,
+  FiTarget,
+  FiZap,
+  FiLayers,
+  FiRefreshCw,
+  FiAlertCircle,
+} from "react-icons/fi";
 
-// Helper to safely format scores
 const formatScore = (score: number | string | undefined): string => {
   if (typeof score === "number") return score.toFixed(1);
   if (typeof score === "string") return parseFloat(score).toFixed(1);
@@ -34,21 +44,11 @@ export default function SomeIdeaPage() {
   });
 
   const handleRefine = async () => {
-    if (!userInfo?.userId) {
-      return;
-    }
-
-    if (!formData.roughIdea.trim()) {
-      return;
-    }
-
-    const result = await refineIdeaAction(userInfo.userId, "", formData);
-    if (!result) {
-      return;
-    }
+    if (!userInfo?.userId || !formData.roughIdea.trim()) return;
+    await refineIdeaAction(userInfo.userId, "", formData);
   };
 
-  const handleSelectIdea = (idea: typeof ideas[0]) => {
+  const handleSelectIdea = (idea: (typeof ideas)[0]) => {
     sessionStorage.setItem(
       "selectedIdea",
       JSON.stringify({
@@ -66,72 +66,58 @@ export default function SomeIdeaPage() {
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 8) return "text-green-600";
-    if (score >= 6) return "text-yellow-600";
-    return "text-red-600";
+    if (score >= 8) return "text-emerald-400";
+    if (score >= 6) return "text-amber-400";
+    return "text-rose-400";
   };
 
   return (
     <AuthenticatedLayout>
-      <div className="w-full max-w-7xl mx-auto overflow-x-hidden">
-        <div className="mb-8">
+      <div className="max-w-5xl mx-auto space-y-6 pb-12">
+        {/* Page Header */}
+        <div className="space-y-2">
           <button
+            type="button"
             onClick={() => router.push("/ideation")}
-            className="mb-4 flex items-center gap-2"
-            style={{ color: "var(--color-text-secondary)" }}
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
           >
-            <FiArrowLeft className="w-4 h-4" />
-            Back
+            <FiArrowLeft className="w-3.5 h-3.5" />
+            Back to Ideation Hub
           </button>
-          <h1
-            className="text-3xl font-bold mb-2"
-            style={{ color: "var(--color-text)" }}
-          >
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">
+              Pathway 2 — Angle Refinement
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
             Refine Your Rough Idea
           </h1>
-          <p style={{ color: "var(--color-text-secondary)" }}>
-            Turn your concept into 5 strategic content angles
+          <p className="text-xs sm:text-sm text-zinc-400">
+            Transform a raw concept into 5 high-converting strategic angles tailored for your audience.
           </p>
         </div>
 
         {/* Input Form */}
         {ideas.length === 0 && (
-          <div
-            className="rounded-xl p-8 mb-8"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <div className="mb-6">
-              <label
-                className="block text-sm font-medium mb-2"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Your Rough Idea
+          <div className="p-6 sm:p-8 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm shadow-sm space-y-6">
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                Your Rough Idea or Thesis
               </label>
               <textarea
                 value={formData.roughIdea}
                 onChange={(e) =>
                   setFormData({ ...formData, roughIdea: e.target.value })
                 }
-                className="w-full px-4 py-3 rounded-lg"
-                style={{
-                  border: "1px solid var(--color-border)",
-                  backgroundColor: "var(--color-background)",
-                  color: "var(--color-text)",
-                }}
+                className="w-full px-4 py-3 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 text-sm focus:outline-none focus:border-zinc-600 transition-colors placeholder:text-zinc-600 resize-y min-h-[110px]"
                 rows={4}
-                placeholder="e.g., AI productivity tools, startup fundraising tips, social media algorithms..."
+                placeholder="e.g., AI productivity tools, early-stage fundraising heuristics, or social distribution frameworks..."
               />
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--color-text-secondary)" }}
-                >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
                   Target Audience
                 </label>
                 <input
@@ -140,22 +126,14 @@ export default function SomeIdeaPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, audience: e.target.value })
                   }
-                  className="w-full px-4 py-2 rounded-lg"
-                  style={{
-                    border: "1px solid var(--color-border)",
-                    backgroundColor: "var(--color-background)",
-                    color: "var(--color-text)",
-                  }}
-                  placeholder="e.g., startup founders"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 text-sm focus:outline-none focus:border-zinc-600 transition-colors"
+                  placeholder="e.g., startup founders, product engineers"
                 />
               </div>
 
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--color-text-secondary)" }}
-                >
-                  Platform
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                  Primary Platform
                 </label>
                 <select
                   title="Platform"
@@ -163,15 +141,10 @@ export default function SomeIdeaPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, platform: e.target.value })
                   }
-                  className="w-full px-4 py-2 rounded-lg"
-                  style={{
-                    border: "1px solid var(--color-border)",
-                    backgroundColor: "var(--color-background)",
-                    color: "var(--color-text)",
-                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 text-sm focus:outline-none focus:border-zinc-600 transition-colors"
                 >
                   <option value="linkedin">LinkedIn</option>
-                  <option value="twitter">Twitter</option>
+                  <option value="twitter">Twitter / X</option>
                   <option value="instagram">Instagram</option>
                   <option value="youtube">YouTube</option>
                 </select>
@@ -179,184 +152,148 @@ export default function SomeIdeaPage() {
             </div>
 
             <button
+              type="button"
               onClick={handleRefine}
-              disabled={loading}
-              className="w-full py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
-              style={{
-                backgroundColor: "var(--color-text)",
-                color: "var(--color-background)",
-              }}
+              disabled={loading || !formData.roughIdea.trim()}
+              className="w-full py-3 px-6 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs sm:text-sm font-semibold transition-all transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
             >
               <FiEdit3 className="w-4 h-4" />
-              {loading ? "Refining Your Idea..." : "Refine into 5 Angles"}
+              {loading ? "Generating 5 Strategic Angles..." : "Refine into 5 Angles"}
             </button>
           </div>
         )}
 
-        {/* Error */}
+        {/* Error Alert */}
         {error && (
-          <div
-            className="px-6 py-4 rounded-lg mb-8"
-            style={{ border: "1px solid #7f1d1d", color: "#fca5a5" }}
-          >
-            {error}
+          <div className="p-4 rounded-xl border border-rose-800/40 bg-rose-950/30 text-rose-300 text-xs sm:text-sm flex items-center gap-2.5">
+            <FiAlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Refined Ideas */}
+        {/* Refined Ideas Result List */}
         {ideas.length > 0 && (
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2
-                className="text-2xl font-bold"
-                style={{ color: "var(--color-text)" }}
-              >
-                5 Refined Angles
-              </h2>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-100">
+                  5 Refined Strategic Angles
+                </h2>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Select your strongest angle to advance into automated research and drafting.
+                </p>
+              </div>
               <button
+                type="button"
                 onClick={() => clearIdeas()}
-                className="font-medium"
-                style={{ color: "var(--color-text-secondary)" }}
+                className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
               >
+                <FiRefreshCw className="w-3.5 h-3.5" />
                 Try Different Idea
               </button>
             </div>
 
             <div className="space-y-4">
-              {ideas.map((idea, index) => (
-                <div
-                  key={index}
-                  className={`rounded-xl p-6 transition-all cursor-pointer border ${
-                    selectedIdea === idea
-                      ? "border-purple-500"
-                      : "border-transparent"
-                  }`}
-                  style={{
-                    backgroundColor: "var(--color-surface)",
-                    borderColor:
-                      selectedIdea === idea
-                        ? "var(--color-text)"
-                        : "var(--color-border)",
-                  }}
-                  onClick={() => selectIdea(idea)}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span
-                          className="text-xs font-semibold px-3 py-1 rounded-full"
-                          style={{
-                            backgroundColor: "var(--color-surface-hover)",
-                            color: "var(--color-text-secondary)",
-                          }}
-                        >
-                          {idea.platform}
+              {ideas.map((idea, index) => {
+                const isSelected = selectedIdea === idea;
+                return (
+                  <div
+                    key={index}
+                    onClick={() => selectIdea(idea)}
+                    className={`p-5 rounded-2xl border transition-all cursor-pointer space-y-4 ${
+                      isSelected
+                        ? "border-amber-500/60 bg-zinc-950 shadow-md ring-1 ring-amber-500/20"
+                        : "border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-zinc-700"
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="default" className="text-[10px]">
+                            {idea.platform}
+                          </Badge>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {idea.format}
+                          </Badge>
+                        </div>
+                        <h3 className="text-base font-bold text-zinc-100">
+                          {idea.title}
+                        </h3>
+                        <div className="text-xs text-zinc-300">
+                          <span className="font-semibold text-zinc-400">Angle: </span>
+                          <MarkdownRenderer content={idea.angle || ""} className="inline" />
+                        </div>
+                        {idea.hook && (
+                          <div className="p-3 rounded-xl border border-zinc-800/80 bg-zinc-950/80 flex items-start gap-2.5">
+                            <FiTarget className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                            <div className="text-xs text-zinc-300 flex-1">
+                              <span className="font-semibold text-amber-400">Hook: </span>
+                              <MarkdownRenderer content={idea.hook} className="inline" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Overall Score Meter */}
+                      <div className="flex sm:flex-col items-center justify-between sm:justify-center p-3 rounded-xl bg-zinc-950 border border-zinc-800 shrink-0 min-w-[90px]">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
+                          Overall Score
                         </span>
                         <span
-                          className="text-xs px-2 py-1 rounded"
-                          style={{
-                            backgroundColor: "var(--color-surface-hover)",
-                            color: "var(--color-text-secondary)",
-                          }}
+                          className={`text-2xl font-black ${getScoreColor(
+                            Number(idea.scores?.overall || 0),
+                          )}`}
                         >
-                          {idea.format}
+                          {formatScore(idea.scores?.overall)}
                         </span>
                       </div>
-                      <h3
-                        className="text-xl font-semibold mb-2"
-                        style={{ color: "var(--color-text)" }}
-                      >
-                        {idea.title}
-                      </h3>
-                      <p
-                        className="text-sm mb-3"
-                        style={{ color: "var(--color-text-secondary)" }}
-                      >
-                        <span className="font-medium">Angle:</span> {idea.angle}
-                      </p>
-                      {idea.hook && (
-                        <p
-                          className="text-sm p-3 rounded-lg flex items-center gap-2"
-                          style={{
-                            backgroundColor: "var(--color-surface-hover)",
-                            color: "var(--color-text-secondary)",
-                          }}
-                        >
-                          <FiTarget className="w-4 h-4" />
-                          <span className="font-medium">Hook:</span> {idea.hook}
+                    </div>
+
+                    {/* Sub-Scores Matrix */}
+                    <div className="grid grid-cols-3 gap-2 pt-3 border-t border-zinc-800/60 text-center">
+                      <div className="p-2 rounded-lg bg-zinc-950/60 border border-zinc-800/60">
+                        <p className="text-[10px] font-semibold text-zinc-500 uppercase">
+                          Virality
                         </p>
-                      )}
+                        <p className={`text-sm font-bold mt-0.5 ${getScoreColor(Number(idea.scores?.virality || 0))}`}>
+                          {formatScore(idea.scores?.virality)}
+                        </p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-zinc-950/60 border border-zinc-800/60">
+                        <p className="text-[10px] font-semibold text-zinc-500 uppercase">
+                          Clarity
+                        </p>
+                        <p className={`text-sm font-bold mt-0.5 ${getScoreColor(Number(idea.scores?.clarity || 0))}`}>
+                          {formatScore(idea.scores?.clarity)}
+                        </p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-zinc-950/60 border border-zinc-800/60">
+                        <p className="text-[10px] font-semibold text-zinc-500 uppercase">
+                          Comp Edge
+                        </p>
+                        <p className={`text-sm font-bold mt-0.5 ${getScoreColor(10 - Number(idea.scores?.competition || 0))}`}>
+                          {formatScore(idea.scores?.competition)}
+                        </p>
+                      </div>
                     </div>
-                    <div
-                      className={`text-3xl font-bold ${getScoreColor(idea.scores.overall)} ml-4`}
-                    >
-                      {formatScore(idea.scores.overall)}
-                    </div>
-                  </div>
 
-                  {/* Scores */}
-                  <div className="grid grid-cols-4 gap-4 text-sm mb-4">
-                    <div>
-                      <div style={{ color: "var(--color-text-muted)" }}>
-                        Overall
-                      </div>
-                      <div
-                        className={`font-bold text-lg ${getScoreColor(idea.scores.overall)}`}
+                    {/* Select / Advance Action Button */}
+                    {isSelected && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectIdea(idea);
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold flex items-center justify-center gap-2 transition-all transform hover:scale-[1.01] shadow-sm mt-2"
                       >
-                        {formatScore(idea.scores.overall)}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ color: "var(--color-text-muted)" }}>
-                        Virality
-                      </div>
-                      <div
-                        className={`font-semibold ${getScoreColor(idea.scores.virality)}`}
-                      >
-                        {formatScore(idea.scores.virality)}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ color: "var(--color-text-muted)" }}>
-                        Clarity
-                      </div>
-                      <div
-                        className={`font-semibold ${getScoreColor(idea.scores.clarity)}`}
-                      >
-                        {formatScore(idea.scores.clarity)}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ color: "var(--color-text-muted)" }}>
-                        Competition
-                      </div>
-                      <div
-                        className={`font-semibold ${getScoreColor(10 - idea.scores.competition)}`}
-                      >
-                        {formatScore(idea.scores.competition)}
-                      </div>
-                    </div>
+                        <span>Select Angle & Proceed to Research</span>
+                        <FiArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
-
-                  {/* Select Button */}
-                  {selectedIdea === idea && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectIdea(idea);
-                      }}
-                      className="w-full py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2"
-                      style={{
-                        backgroundColor: "var(--color-text)",
-                        color: "var(--color-background)",
-                      }}
-                    >
-                      Select This Angle
-                      <FiArrowRight className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

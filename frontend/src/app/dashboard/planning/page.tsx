@@ -59,13 +59,12 @@ function dayKey(date: Date | string) {
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
-    scheduled: "bg-blue-900/70 text-blue-200 border border-blue-700/60",
-    completed:
-      "bg-emerald-900/70 text-emerald-200 border border-emerald-700/60",
-    cancelled: "bg-red-900/70 text-red-200 border border-red-700/60",
+    scheduled: "bg-amber-950/40 text-amber-300 border border-amber-800/40",
+    completed: "bg-emerald-950/40 text-emerald-300 border border-emerald-800/40",
+    cancelled: "bg-rose-950/40 text-rose-300 border border-rose-800/40",
   };
   return (
-    map[status] ?? "bg-neutral-800 text-neutral-300 border border-neutral-700"
+    map[status] ?? "bg-zinc-800 text-zinc-300 border border-zinc-700"
   );
 }
 
@@ -483,19 +482,19 @@ export default function PlanningPage() {
     return (
       <div
         key={schedule.eventId}
-        className={`rounded-2xl border border-neutral-800 bg-black/70 ${
+        className={`rounded-2xl border border-zinc-800 bg-zinc-950/70 hover:border-zinc-700 transition-colors ${
           compact ? "p-3" : "p-4"
         }`}
       >
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-600 text-sm font-bold text-white">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-700 text-sm font-bold text-zinc-100 shadow-sm">
             {schedule.platform.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">
+            <p className="truncate text-sm font-semibold text-zinc-100">
               {getScheduleTitle(schedule)}
             </p>
-            <p className="mt-1 text-xs text-neutral-300">
+            <p className="mt-1 text-xs text-zinc-400">
               {showDate
                 ? formatScheduleDateTime(
                     schedule.scheduledAt,
@@ -508,7 +507,7 @@ export default function PlanningPage() {
             </p>
             {schedule.contentSnapshot?.text && (
               <p
-                className={`mt-2 text-xs text-neutral-400 ${
+                className={`mt-2 text-xs text-zinc-400 ${
                   compact ? "line-clamp-3" : "line-clamp-2"
                 }`}
               >
@@ -520,48 +519,48 @@ export default function PlanningPage() {
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span
-            className={`rounded-full px-2 py-0.5 text-[10px] ${statusBadge(schedule.status)}`}
+            className={`rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${statusBadge(schedule.status)}`}
           >
             {schedule.status}
           </span>
-          <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[10px] text-neutral-300 capitalize">
+          <span className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400 capitalize font-medium">
             {schedule.source}
           </span>
-          <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[10px] text-neutral-300">
+          <span className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400 font-medium">
             {schedule.platform}
           </span>
-          <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[10px] text-neutral-300">
+          <span className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-500 font-medium">
             {schedule.timezone || "Asia/Kolkata"}
           </span>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-3.5 flex flex-wrap items-center gap-2 pt-3 border-t border-zinc-800/60">
           <button
             onClick={() => openEditScheduleModal(schedule)}
-            className="rounded-xl border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-neutral-200 transition-colors hover:border-neutral-500"
+            className="rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-800 hover:border-zinc-700 shadow-sm"
             title="Edit schedule"
           >
-            <span className="inline-flex items-center gap-1">
-              <FiEdit3 size={12} /> Edit
+            <span className="inline-flex items-center gap-1.5">
+              <FiEdit3 size={13} /> Edit
             </span>
           </button>
           {showViewButton && (
             <button
               onClick={() => viewScheduleDetails(schedule)}
-              className="rounded-xl border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-neutral-200 transition-colors hover:border-neutral-500"
+              className="rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-800 hover:border-zinc-700 shadow-sm"
             >
-              <span className="inline-flex items-center gap-1">
-                <FiEye size={12} /> View
+              <span className="inline-flex items-center gap-1.5">
+                <FiEye size={13} /> View
               </span>
             </button>
           )}
           <button
             onClick={() => requestDeleteEvent(schedule)}
-            className="rounded-xl border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:border-red-700 hover:text-red-300"
+            className="rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:border-rose-800/60 hover:text-rose-300 hover:bg-rose-950/20 shadow-sm"
             title="Cancel event"
           >
-            <span className="inline-flex items-center gap-1">
-              <FiTrash2 size={12} /> Cancel
+            <span className="inline-flex items-center gap-1.5">
+              <FiTrash2 size={13} /> Cancel
             </span>
           </button>
         </div>
@@ -571,98 +570,105 @@ export default function PlanningPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <FiCalendar className="text-gray-400" size={32} />
+      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Planning &amp; Scheduling</h1>
-            <p className="mt-1 text-gray-400">
-              Schedule content, review this week, and keep reminders aligned.
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">
+                Stage 3 — Planning & Publishing
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+              Content Calendar & Scheduling
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1">
+              Plan and schedule your publishing cadence across verified distribution channels.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => openScheduleModal()}
+            className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 hover:bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-zinc-950 shadow-sm transition-all transform hover:scale-[1.02] active:scale-[0.98] self-start sm:self-auto"
+          >
+            <FiPlus size={16} /> Schedule Post
+          </button>
         </div>
-        <button
-          onClick={() => openScheduleModal()}
-          className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2.5 font-medium text-black shadow-sm transition-colors hover:bg-gray-100"
-        >
-          <FiPlus size={18} /> Schedule Post
-        </button>
-      </div>
 
-      {error && (
-        <div className="mb-4 rounded-2xl border border-red-700 bg-red-900/30 p-3 text-sm text-red-300">
-          {error}
-        </div>
-      )}
+        {error && (
+          <div className="rounded-xl border border-rose-800/40 bg-rose-950/30 p-4 text-xs sm:text-sm text-rose-300 flex items-center gap-2">
+            <FiAlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 rounded-[28px] border border-neutral-800 bg-linear-to-b from-neutral-950 to-neutral-900 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <FiCalendar className="text-neutral-400" size={18} />
-                <p className="text-lg font-semibold text-white">
-                  Content Calendar
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 backdrop-blur-sm shadow-sm space-y-5">
+            <div className="flex items-center justify-between gap-4 pb-4 border-b border-zinc-800/80">
+              <div>
+                <div className="flex items-center gap-2">
+                  <FiCalendar className="text-amber-400" size={18} />
+                  <h2 className="text-base font-semibold text-zinc-100">
+                    Content Calendar
+                  </h2>
+                </div>
+                <p className="mt-0.5 text-xs text-zinc-400">
+                  Select any day to inspect scheduled posts or queue a new slot.
                 </p>
               </div>
-              <p className="mt-1 text-sm text-neutral-500">
-                Tap a date to open actions or inspect scheduled activity.
-              </p>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-1.5 text-right">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">
+                  Selected
+                </p>
+                <p className="mt-0.5 text-xs font-bold text-zinc-200">
+                  {formatLongDate(selectedDate)}
+                </p>
+              </div>
             </div>
-            <div className="rounded-2xl border border-neutral-800 bg-black/60 px-4 py-2 text-right">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                Selected day
-              </p>
-              <p className="mt-1 text-sm font-semibold text-white">
-                {formatLongDate(selectedDate)}
-              </p>
-            </div>
-          </div>
 
-          <div className="rounded-3xl border border-neutral-800 bg-black/70 p-3">
-            <Calendar
-              onChange={(value) => {
-                if (value && !Array.isArray(value)) {
-                  setSelectedDate(value as Date);
-                }
-              }}
-              onClickDay={handleCalendarDayClick}
-              value={selectedDate}
-              className="w-full planning-calendar"
-              tileClassName={({ date, view }) => {
-                if (view !== "month") return undefined;
-                const count = schedulesByDay.get(dayKey(date))?.length || 0;
-                if (!count) return undefined;
-                return count > 1
-                  ? "planning-calendar-tile--busy"
-                  : "planning-calendar-tile--scheduled";
-              }}
-              tileContent={({ date, view }) => {
-                if (view !== "month") return null;
-                const daySchedules = schedulesByDay.get(dayKey(date)) || [];
-                if (!daySchedules.length) return null;
+            <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/80 p-4">
+              <Calendar
+                onChange={(value) => {
+                  if (value && !Array.isArray(value)) {
+                    setSelectedDate(value as Date);
+                  }
+                }}
+                onClickDay={handleCalendarDayClick}
+                value={selectedDate}
+                className="w-full planning-calendar"
+                tileClassName={({ date, view }) => {
+                  if (view !== "month") return undefined;
+                  const count = schedulesByDay.get(dayKey(date))?.length || 0;
+                  if (!count) return undefined;
+                  return count > 1
+                    ? "planning-calendar-tile--busy"
+                    : "planning-calendar-tile--scheduled";
+                }}
+                tileContent={({ date, view }) => {
+                  if (view !== "month") return null;
+                  const daySchedules = schedulesByDay.get(dayKey(date)) || [];
+                  if (!daySchedules.length) return null;
 
-                return (
-                  <div className="pointer-events-none mt-1 flex flex-col items-center gap-1">
-                    <div className="flex items-center gap-1">
-                      {daySchedules.slice(0, 3).map((schedule) => (
-                        <span
-                          key={schedule.eventId}
-                          className="h-1.5 w-1.5 rounded-full bg-amber-400"
-                        />
-                      ))}
+                  return (
+                    <div className="pointer-events-none mt-1 flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-1">
+                        {daySchedules.slice(0, 3).map((schedule) => (
+                          <span
+                            key={schedule.eventId}
+                            className="h-1.5 w-1.5 rounded-full bg-amber-400"
+                          />
+                        ))}
+                      </div>
+                      <span className="rounded bg-zinc-800/90 px-1.5 py-0.2 text-[9px] font-semibold text-zinc-300 border border-zinc-700/60">
+                        {daySchedules.length} scheduled
+                      </span>
                     </div>
-                    <span className="rounded-full bg-neutral-800/90 px-1.5 py-0.5 text-[9px] font-medium text-neutral-300">
-                      {daySchedules.length} scheduled
-                    </span>
-                  </div>
-                );
-              }}
-            />
+                  );
+                }}
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-4 rounded-[28px] border border-neutral-800 bg-linear-to-b from-neutral-950 to-neutral-900 p-5 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+          <div className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 shadow-sm">
           <div>
             <p className="text-[11px] uppercase tracking-[0.22em] text-neutral-500">
               Today
@@ -1232,6 +1238,7 @@ export default function PlanningPage() {
           </div>
         </div>
       )}
+      </div>
     </AuthenticatedLayout>
   );
 }

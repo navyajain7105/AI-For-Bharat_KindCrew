@@ -5,13 +5,15 @@ import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { getContentById } from "@/lib/api/content";
-import ReactMarkdown from "react-markdown";
+import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { Badge } from "@/components/ui/Badge";
 import {
   FiArrowLeft,
   FiCopy,
   FiCheck,
-  FiDownload,
-  FiEdit3,
+  FiTarget,
+  FiAlertCircle,
+  FiLayers,
 } from "react-icons/fi";
 
 interface PlatformVariant {
@@ -86,36 +88,6 @@ export default function ContentDetailPage() {
     return String(val);
   };
 
-  const renderOutlineSection = (section: OutlineSection) => {
-    if (typeof section === "string") {
-      return <span>{section}</span>;
-    }
-
-    if (section && typeof section === "object") {
-      const title = safeText(section.title).trim();
-      const content = safeText(section.content).trim();
-      const wordCount =
-        typeof section.estimatedWordCount === "number"
-          ? section.estimatedWordCount
-          : null;
-
-      return (
-        <div className="space-y-1">
-          {title && <p className="font-medium">{title}</p>}
-          {content && <p>{content}</p>}
-          {wordCount !== null && (
-            <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-              Approx. {wordCount} words
-            </p>
-          )}
-          {!title && !content && <p>{safeText(section)}</p>}
-        </div>
-      );
-    }
-
-    return <span>{safeText(section)}</span>;
-  };
-
   useEffect(() => {
     if (authReady && !authenticated) {
       router.replace("/");
@@ -135,7 +107,7 @@ export default function ContentDetailPage() {
         setSelectedPlatform(platforms[0]);
       }
     }
-  }, [content]);
+  }, [content, selectedPlatform]);
 
   const loadContent = async () => {
     try {
@@ -145,7 +117,6 @@ export default function ContentDetailPage() {
       if (!userId || !token) return;
 
       const result = await getContentById(token, contentId);
-
       if (result.success && result.content) {
         setContent(result.content);
       } else {
@@ -174,188 +145,111 @@ export default function ContentDetailPage() {
       month: "long",
       day: "numeric",
       year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
     });
   };
 
-  const renderPlatformContent = (
-    platform: string,
-    variant: PlatformVariant,
-  ) => {
+  const renderPlatformContent = (platform: string, variant: PlatformVariant) => {
     return (
       <div className="space-y-4">
         {variant.postText && (
-          <div
-            className="p-4 rounded-xl whitespace-pre-wrap"
-            style={{
-              backgroundColor: "var(--color-surface-hover)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <h4
-                className="text-sm font-semibold"
-                style={{ color: "var(--color-text-muted)" }}
-              >
+          <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2.5">
+            <div className="flex justify-between items-center pb-2 border-b border-zinc-800/80">
+              <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 Post Text
-              </h4>
+              </span>
               <button
-                onClick={() =>
-                  handleCopy(variant.postText!, `${platform}-post`)
-                }
-                className="p-2 rounded-lg transition-colors"
-                style={{
-                  backgroundColor:
-                    copiedSection === `${platform}-post`
-                      ? "var(--color-surface)"
-                      : "transparent",
-                  color: "var(--color-text)",
-                }}
+                type="button"
+                onClick={() => handleCopy(variant.postText!, `${platform}-post`)}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/60"
               >
                 {copiedSection === `${platform}-post` ? (
-                  <FiCheck className="w-4 h-4" />
+                  <FiCheck className="w-3.5 h-3.5 text-emerald-400" />
                 ) : (
-                  <FiCopy className="w-4 h-4" />
+                  <FiCopy className="w-3.5 h-3.5 text-zinc-400" />
                 )}
+                <span>{copiedSection === `${platform}-post` ? "Copied" : "Copy"}</span>
               </button>
             </div>
-            <div style={{ color: "var(--color-text)" }}>
-              <ReactMarkdown>{safeText(variant.postText)}</ReactMarkdown>
-            </div>
+            <MarkdownRenderer content={variant.postText} />
           </div>
         )}
 
         {variant.thread && Array.isArray(variant.thread) && (
-          <div className="space-y-2">
-            <h4
-              className="text-sm font-semibold"
-              style={{ color: "var(--color-text-muted)" }}
-            >
-              Thread ({variant.thread.length} tweets)
-            </h4>
-            {variant.thread.map((tweet, index) => (
-              <div
-                key={index}
-                className="p-3 rounded-lg"
-                style={{
-                  backgroundColor: "var(--color-surface-hover)",
-                  border: "1px solid var(--color-border)",
-                }}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                Thread ({variant.thread.length} tweets)
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCopy(variant.thread!.join("\n\n"), `${platform}-thread-all`)}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/60"
               >
-                <div className="flex justify-between items-start mb-2">
-                  <span
-                    className="text-xs font-medium"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
+                {copiedSection === `${platform}-thread-all` ? (
+                  <FiCheck className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <FiCopy className="w-3.5 h-3.5 text-zinc-400" />
+                )}
+                <span>Copy Entire Thread</span>
+              </button>
+            </div>
+            {variant.thread.map((tweet, index) => (
+              <div key={index} className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-amber-400 uppercase">
                     Tweet {index + 1}
                   </span>
                   <button
-                    onClick={() =>
-                      handleCopy(tweet, `${platform}-tweet-${index}`)
-                    }
-                    className="p-1 rounded transition-colors"
-                    style={{ color: "var(--color-text)" }}
+                    type="button"
+                    onClick={() => handleCopy(tweet, `${platform}-tweet-${index}`)}
+                    className="p-1 text-zinc-400 hover:text-zinc-200"
                   >
                     {copiedSection === `${platform}-tweet-${index}` ? (
-                      <FiCheck className="w-3 h-3" />
+                      <FiCheck className="w-3.5 h-3.5 text-emerald-400" />
                     ) : (
-                      <FiCopy className="w-3 h-3" />
+                      <FiCopy className="w-3.5 h-3.5" />
                     )}
                   </button>
                 </div>
-                <p className="text-sm" style={{ color: "var(--color-text)" }}>
-                  {safeText(tweet)}
-                </p>
+                <MarkdownRenderer content={tweet} />
               </div>
             ))}
           </div>
         )}
 
         {variant.caption && (
-          <div
-            className="p-4 rounded-xl"
-            style={{
-              backgroundColor: "var(--color-surface-hover)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <h4
-                className="text-sm font-semibold"
-                style={{ color: "var(--color-text-muted)" }}
-              >
+          <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2.5">
+            <div className="flex justify-between items-center pb-2 border-b border-zinc-800/80">
+              <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 Caption
-              </h4>
+              </span>
               <button
-                onClick={() =>
-                  handleCopy(variant.caption!, `${platform}-caption`)
-                }
-                className="p-2 rounded-lg transition-colors"
-                style={{ color: "var(--color-text)" }}
+                type="button"
+                onClick={() => handleCopy(variant.caption!, `${platform}-caption`)}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/60"
               >
                 {copiedSection === `${platform}-caption` ? (
-                  <FiCheck className="w-4 h-4" />
+                  <FiCheck className="w-3.5 h-3.5 text-emerald-400" />
                 ) : (
-                  <FiCopy className="w-4 h-4" />
+                  <FiCopy className="w-3.5 h-3.5 text-zinc-400" />
                 )}
+                <span>Copy Caption</span>
               </button>
             </div>
-            <p
-              className="text-sm whitespace-pre-wrap"
-              style={{ color: "var(--color-text)" }}
-            >
-              {safeText(variant.caption)}
-            </p>
+            <MarkdownRenderer content={variant.caption} />
           </div>
         )}
 
         {variant.hashtags && variant.hashtags.length > 0 && (
-          <div
-            className="p-4 rounded-xl"
-            style={{
-              backgroundColor: "var(--color-surface-hover)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <h4
-                className="text-sm font-semibold"
-                style={{ color: "var(--color-text-muted)" }}
+          <div className="flex flex-wrap gap-2 pt-2">
+            {variant.hashtags.map((tag, index) => (
+              <span
+                key={index}
+                className="px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-medium text-amber-400"
               >
-                Hashtags
-              </h4>
-              <button
-                onClick={() =>
-                  handleCopy(
-                    variant.hashtags!.join(" "),
-                    `${platform}-hashtags`,
-                  )
-                }
-                className="p-2 rounded-lg transition-colors"
-                style={{ color: "var(--color-text)" }}
-              >
-                {copiedSection === `${platform}-hashtags` ? (
-                  <FiCheck className="w-4 h-4" />
-                ) : (
-                  <FiCopy className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {variant.hashtags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 rounded-full text-sm"
-                  style={{
-                    backgroundColor: "var(--color-surface)",
-                    color: "var(--color-text)",
-                  }}
-                >
-                  {safeText(tag)}
-                </span>
-              ))}
-            </div>
+                {tag.startsWith("#") ? tag : `#${tag}`}
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -365,22 +259,8 @@ export default function ContentDetailPage() {
   if (loading) {
     return (
       <AuthenticatedLayout>
-        <div className="w-full max-w-7xl mx-auto">
-          <div
-            className="rounded-xl p-12 text-center"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <div
-              className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-              style={{ borderColor: "var(--color-text)" }}
-            ></div>
-            <p style={{ color: "var(--color-text-secondary)" }}>
-              Loading content...
-            </p>
-          </div>
+        <div className="p-12 text-center text-zinc-500 text-xs sm:text-sm">
+          Loading content studio details...
         </div>
       </AuthenticatedLayout>
     );
@@ -389,34 +269,19 @@ export default function ContentDetailPage() {
   if (error || !content) {
     return (
       <AuthenticatedLayout>
-        <div className="w-full max-w-7xl mx-auto">
-          <div className="mb-8">
-            <button
-              onClick={() => router.push("/content/library")}
-              className="mb-4 flex items-center gap-2"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
-              <FiArrowLeft className="w-4 h-4" />
-              Back to Library
-            </button>
-          </div>
-          <div
-            className="rounded-xl p-8 text-center"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-            }}
+        <div className="max-w-4xl mx-auto space-y-6">
+          <button
+            type="button"
+            onClick={() => router.push("/content/library")}
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200"
           >
-            <p
-              className="text-lg font-semibold mb-2"
-              style={{ color: "var(--color-text)" }}
-            >
-              Content Not Found
-            </p>
-            <p style={{ color: "var(--color-text-secondary)" }}>
-              {error ||
-                "The content you're looking for doesn't exist or you don't have access to it."}
-            </p>
+            <FiArrowLeft className="w-3.5 h-3.5" />
+            Back to Library
+          </button>
+          <div className="p-8 text-center rounded-2xl border border-zinc-800 bg-zinc-900/20 space-y-2">
+            <FiAlertCircle className="w-8 h-8 text-rose-400 mx-auto" />
+            <h2 className="text-base font-bold text-zinc-200">Content Not Found</h2>
+            <p className="text-xs text-zinc-400">{error || "Requested content does not exist."}</p>
           </div>
         </div>
       </AuthenticatedLayout>
@@ -425,254 +290,131 @@ export default function ContentDetailPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="w-full max-w-7xl mx-auto">
+      <div className="max-w-6xl mx-auto space-y-6 pb-12">
         {/* Header */}
-        <div className="mb-8">
+        <div className="space-y-2">
           <button
+            type="button"
             onClick={() => router.push("/content/library")}
-            className="mb-4 flex items-center gap-2"
-            style={{ color: "var(--color-text-secondary)" }}
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
           >
-            <FiArrowLeft className="w-4 h-4" />
-            Back to Library
+            <FiArrowLeft className="w-3.5 h-3.5" />
+            Back to Content Library
           </button>
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
-              <h1
-                className="text-3xl font-bold mb-2"
-                style={{ color: "var(--color-text)" }}
-              >
+              <div className="flex items-center gap-2 mb-1">
+                <Badge variant="default" className="text-[10px]">
+                  {content.contentType}
+                </Badge>
+                <Badge variant="secondary" className="text-[10px]">
+                  {content.distribution?.status || "draft"}
+                </Badge>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
                 {safeText(content.outline?.title) || safeText(content.topic)}
               </h1>
-              <p style={{ color: "var(--color-text-secondary)" }}>
-                Created {formatDate(content.createdAt)}
+              <p className="text-xs text-zinc-400 mt-1">
+                Target Audience: {content.targetAudience} • Created {formatDate(content.createdAt)}
               </p>
-            </div>
-            <div className="flex gap-2">
-              <span
-                className="px-3 py-1 rounded-full text-sm font-medium"
-                style={{
-                  backgroundColor: "var(--color-surface-hover)",
-                  color: "var(--color-text)",
-                  border: "1px solid var(--color-border)",
-                }}
-              >
-                {safeText(content.contentType)}
-              </span>
-              <span
-                className="px-3 py-1 rounded-full text-sm font-medium"
-                style={{
-                  backgroundColor:
-                    content.distribution?.status === "published"
-                      ? "#dcfce7"
-                      : "var(--color-surface-hover)",
-                  color:
-                    content.distribution?.status === "published"
-                      ? "#166534"
-                      : "var(--color-text)",
-                  border: "1px solid var(--color-border)",
-                }}
-              >
-                {content.distribution?.status || "draft"}
-              </span>
             </div>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left Column - Outline & Draft */}
+        {/* 2-Column Content Studio Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {/* Left Column: Outline & Master Draft */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Outline */}
+            {/* Outline Card */}
             {content.outline && (
-              <div
-                className="rounded-xl p-5"
-                style={{
-                  backgroundColor: "var(--color-surface)",
-                  border: "1px solid var(--color-border)",
-                }}
-              >
-                <h2
-                  className="text-lg font-bold mb-4"
-                  style={{ color: "var(--color-text)" }}
-                >
-                  Outline
+              <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-4">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Content Blueprint & Hook
                 </h2>
 
                 {content.outline.hook && (
-                  <div className="mb-4">
-                    <h3
-                      className="text-sm font-semibold mb-2"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      Hook
-                    </h3>
-                    <p
-                      className="text-sm"
-                      style={{ color: "var(--color-text)" }}
-                    >
-                      {content.outline.hook}
-                    </p>
+                  <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-1">
+                    <span className="text-[10px] font-bold uppercase text-amber-400">Master Hook</span>
+                    <MarkdownRenderer content={content.outline.hook} />
                   </div>
                 )}
 
-                {content.outline.sections &&
-                  content.outline.sections.length > 0 && (
-                    <div className="mb-4">
-                      <h3
-                        className="text-sm font-semibold mb-2"
-                        style={{ color: "var(--color-text-muted)" }}
-                      >
-                        Sections
-                      </h3>
-                      <ul className="space-y-2">
-                        {content.outline.sections.map((section, index) => (
-                          <li
-                            key={index}
-                            className="text-sm flex gap-2"
-                            style={{ color: "var(--color-text)" }}
-                          >
-                            <span style={{ color: "var(--color-text-muted)" }}>
-                              {index + 1}.
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              {renderOutlineSection(section as OutlineSection)}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
+                {content.outline.sections && content.outline.sections.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold uppercase text-zinc-500">Key Sections</span>
+                    <div className="space-y-1.5 text-xs text-zinc-300">
+                      {content.outline.sections.map((sec, idx) => (
+                        <div key={idx} className="p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-800/60">
+                          <MarkdownRenderer content={typeof sec === "string" ? sec : safeText(sec)} />
+                        </div>
+                      ))}
                     </div>
-                  )}
-
-                {content.outline.cta && (
-                  <div>
-                    <h3
-                      className="text-sm font-semibold mb-2"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      Call to Action
-                    </h3>
-                    <p
-                      className="text-sm"
-                      style={{ color: "var(--color-text)" }}
-                    >
-                      {content.outline.cta}
-                    </p>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Metadata */}
-            <div
-              className="rounded-xl p-5"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              <h2
-                className="text-lg font-bold mb-4"
-                style={{ color: "var(--color-text)" }}
-              >
-                Details
-              </h2>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span style={{ color: "var(--color-text-muted)" }}>
-                    Audience:
-                  </span>{" "}
-                  <span style={{ color: "var(--color-text)" }}>
-                    {content.targetAudience}
-                  </span>
+            {/* Master Draft Card */}
+            {content.draft?.text && (
+              <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Master Draft
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(content.draft.text!, "master-draft")}
+                    className="p-1 text-zinc-400 hover:text-zinc-200"
+                  >
+                    {copiedSection === "master-draft" ? (
+                      <FiCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <FiCopy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
                 </div>
-                {content.angle && (
-                  <div>
-                    <span style={{ color: "var(--color-text-muted)" }}>
-                      Angle:
-                    </span>{" "}
-                    <span style={{ color: "var(--color-text)" }}>
-                      {content.angle}
-                    </span>
-                  </div>
-                )}
-                <div>
-                  <span style={{ color: "var(--color-text-muted)" }}>
-                    Source:
-                  </span>{" "}
-                  <span style={{ color: "var(--color-text)" }}>
-                    {content.source === "phase1" ? "From Idea" : "Manual"}
-                  </span>
+                <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800">
+                  <MarkdownRenderer content={content.draft.text} />
                 </div>
-                {content.ideaId && (
-                  <div>
-                    <span style={{ color: "var(--color-text-muted)" }}>
-                      Idea ID:
-                    </span>{" "}
-                    <span
-                      className="text-xs font-mono"
-                      style={{ color: "var(--color-text)" }}
-                    >
-                      {content.ideaId.slice(0, 8)}...
-                    </span>
-                  </div>
-                )}
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Right Column - Platform Variants */}
-          <div className="lg:col-span-2">
-            <div
-              className="rounded-xl p-5"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h2
-                  className="text-lg font-bold"
-                  style={{ color: "var(--color-text)" }}
-                >
-                  Platform Content
-                </h2>
-              </div>
-
-              {/* Platform Tabs */}
-              <div className="flex gap-2 mb-6 flex-wrap">
-                {Object.keys(content.platformVariants || {}).map((platform) => (
-                  <button
-                    key={platform}
-                    onClick={() => setSelectedPlatform(platform)}
-                    className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                    style={{
-                      backgroundColor:
-                        selectedPlatform === platform
-                          ? "var(--color-text)"
-                          : "var(--color-surface-hover)",
-                      color:
-                        selectedPlatform === platform
-                          ? "var(--color-background)"
-                          : "var(--color-text)",
-                      border: "1px solid var(--color-border)",
-                    }}
-                  >
-                    {platform.charAt(0).toUpperCase() + platform.slice(1)}
-                  </button>
-                ))}
-              </div>
-
-              {/* Platform Content */}
-              {selectedPlatform &&
-                content.platformVariants[selectedPlatform] && (
-                  <div>
-                    {renderPlatformContent(
-                      selectedPlatform,
-                      content.platformVariants[selectedPlatform],
-                    )}
-                  </div>
-                )}
+          {/* Right Column: Platform Variants Selector */}
+          <div className="lg:col-span-2 p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-200">
+                Multi-Platform Distribution Variants
+              </h2>
+              <span className="text-xs text-zinc-500">Ready to Publish</span>
             </div>
+
+            {/* Platform Selector Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-zinc-800/60">
+              {Object.keys(content.platformVariants || {}).map((plat) => (
+                <button
+                  key={plat}
+                  type="button"
+                  onClick={() => setSelectedPlatform(plat)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all shrink-0 ${
+                    selectedPlatform === plat
+                      ? "bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {plat}
+                </button>
+              ))}
+            </div>
+
+            {/* Platform Variant Content */}
+            {content.platformVariants?.[selectedPlatform] ? (
+              renderPlatformContent(selectedPlatform, content.platformVariants[selectedPlatform])
+            ) : (
+              <div className="p-12 text-center text-xs text-zinc-500">
+                Select a platform variant above to inspect generated copy.
+              </div>
+            )}
           </div>
         </div>
       </div>

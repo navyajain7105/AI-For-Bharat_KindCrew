@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppStore } from "@/store/useAppStore";
 import { getUserIdeas, IdeaBrief } from "@/lib/api/ideation";
@@ -14,17 +15,21 @@ import {
   FiCalendar,
   FiCompass,
   FiArrowRight,
+  FiPlus,
+  FiZap,
+  FiLayers,
+  FiClock,
+  FiTrendingUp,
 } from "react-icons/fi";
 import { getGreetingName } from "@/lib/userUtils";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Badge } from "@/components/ui/Badge";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const {
-    userInfo,
-    authReady,
-    isAuthenticated,
-    token,
-  } = useAuth();
+  const { userInfo, authReady, isAuthenticated, token } = useAuth();
 
   const creatorProfile = useAppStore((state) => state.creatorProfile);
   const hasProfile = useAppStore((state) => state.hasProfile);
@@ -38,466 +43,330 @@ export default function DashboardPage() {
   const [recentContent, setRecentContent] = useState<any[]>([]);
   const [contentLoading, setContentLoading] = useState(false);
 
-  const getPlatformCount = (content: any) => {
-    if (Array.isArray(content?.platforms) && content.platforms.length > 0) {
-      return content.platforms.length;
-    }
-    if (
-      Array.isArray(content?.distribution?.platformTargets) &&
-      content.distribution.platformTargets.length > 0
-    ) {
-      return content.distribution.platformTargets.length;
-    }
-    if (
-      content?.platformVariants &&
-      typeof content.platformVariants === "object"
-    ) {
-      return Object.keys(content.platformVariants).length;
-    }
-    return 0;
-  };
+  const isUserAuthenticated = Boolean(isAuthenticated);
 
-  const formatScore = (score: number | string | undefined) => {
-    if (typeof score === "number") return score.toFixed(1);
-    if (typeof score === "string") {
-      const parsed = Number.parseFloat(score);
-      return Number.isNaN(parsed) ? "0.0" : parsed.toFixed(1);
-    }
-    return "0.0";
-  };
-
-  // Stable boolean — avoids re-running effects on every store update caused
-  // by a new isAuthenticated function reference.
-  const authenticated = !!token && !!userInfo;
-
-  // Fetch creator profile once when authenticated and not yet checked
   useEffect(() => {
-    if (token && authenticated && !profileChecked && !profileLoading) {
+    if (authReady && !isUserAuthenticated) {
+      router.replace("/");
+    }
+  }, [authReady, isUserAuthenticated, router]);
+
+  useEffect(() => {
+    if (token && isUserAuthenticated && authReady && !profileChecked && !profileLoading) {
       fetchProfile(token);
     }
-  }, [token, authenticated, profileChecked, profileLoading, fetchProfile]);
+  }, [token, isUserAuthenticated, authReady, profileChecked, profileLoading, fetchProfile]);
 
   useEffect(() => {
     const loadRecentIdeas = async () => {
-      if (!userInfo?.userId || !token) {
-        return;
-      }
-
+      if (!token) return;
       setIdeasLoading(true);
       try {
         const result = await getUserIdeas(token);
-        if (result.success) {
-          setRecentIdeas((result.ideas || []).slice(0, 3));
+        if (result.success && Array.isArray(result.ideas)) {
+          setRecentIdeas(result.ideas.slice(0, 4));
         }
-      } catch (error) {
-        console.error("Failed to load recent ideas:", error);
+      } catch (err) {
+        console.error("Failed to load ideas:", err);
       } finally {
         setIdeasLoading(false);
       }
     };
 
-    if (authReady && authenticated) {
+    if (token && isUserAuthenticated) {
       loadRecentIdeas();
     }
-  }, [authReady, authenticated, userInfo?.userId, token]);
+  }, [token, isUserAuthenticated]);
 
   useEffect(() => {
     const loadRecentContent = async () => {
-      if (!userInfo?.userId || !token) {
-        return;
-      }
-
+      if (!token) return;
       setContentLoading(true);
       try {
         const result = await getUserContent(token);
-        if (result.success && result.content) {
-          setRecentContent(result.content.slice(0, 3));
+        if (result.success && Array.isArray(result.data)) {
+          setRecentContent(result.data.slice(0, 4));
         }
-      } catch (error) {
-        console.error("Failed to load recent content:", error);
+      } catch (err) {
+        console.error("Failed to load content:", err);
       } finally {
         setContentLoading(false);
       }
     };
 
-    if (authReady && authenticated) {
+    if (token && isUserAuthenticated) {
       loadRecentContent();
     }
-  }, [authReady, authenticated, userInfo?.userId, token]);
+  }, [token, isUserAuthenticated]);
 
-  // Redirect to root if not authenticated after init completes
-  useEffect(() => {
-    if (authReady && !authenticated) {
-      router.replace("/");
-    }
-  }, [authReady, authenticated, router]);
-
-  const shouldShowSetupBanner =
-    profileChecked &&
-    (!hasProfile || !creatorProfile?.settings?.onboardingCompleted) &&
-    showSetupBanner;
+  const quickActions = [
+    {
+      title: "Explore Ideas",
+      description: "Generate and score high-potential content concepts",
+      icon: FiCompass,
+      href: "/ideation",
+      badge: "Stage 1",
+    },
+    {
+      title: "Create Draft",
+      description: "Generate tailored posts with AI tone and formatting",
+      icon: FiEdit3,
+      href: "/content/create",
+      badge: "Stage 2",
+    },
+    {
+      title: "Content Calendar",
+      description: "Manage scheduling and calendar synchronization",
+      icon: FiCalendar,
+      href: "/dashboard/planning",
+      badge: "Stage 3",
+    },
+    {
+      title: "Analytics",
+      description: "Review performance heuristics and audience reach",
+      icon: FiBarChart2,
+      href: "/analytics",
+      badge: "Stage 4",
+    },
+  ];
 
   const dashboardContent = (
-    <div className="w-full max-w-7xl mx-auto overflow-x-hidden">
-      {/* Setup Banner */}
-      {shouldShowSetupBanner && (
+    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+      {/* Setup Progress Banner */}
+      {showSetupBanner && (
         <SetupBanner onDismiss={() => setShowSetupBanner(false)} />
       )}
 
-      {/* Welcome Section */}
-      <div className="mb-6 sm:mb-8">
-        <h1
-          className="text-3xl sm:text-4xl font-bold mb-2"
-          style={{ color: "var(--color-text)" }}
-        >
-          Welcome back, {getGreetingName(userInfo)}!
-        </h1>
-        <p
-          className="text-base sm:text-lg"
-          style={{ color: "var(--color-text-secondary)" }}
-        >
-          {hasProfile
-            ? "Ready to create something amazing today?"
-            : "Complete your profile to get started with personalized content."}
-        </p>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
-        <button
-          onClick={() => router.push("/ideation")}
-          className="p-4 sm:p-6 rounded-xl text-left transition-all sm:hover:scale-[1.02]"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <div
-            className="w-11 h-11 rounded-lg flex items-center justify-center mb-3"
-            style={{
-              backgroundColor: "var(--color-surface-hover)",
-              color: "var(--color-text)",
-            }}
-          >
-            <FiCompass className="w-5 h-5" />
+      {/* Greeting & Workspace Hero Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-6 sm:p-8 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">
+              Workspace Overview
+            </span>
           </div>
-          <h3
-            className="text-lg font-semibold mb-2"
-            style={{ color: "var(--color-text)" }}
-          >
-            Research Ideas
-          </h3>
-          <p
-            className="text-sm"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
-            Generate, evaluate, and save your best content ideas
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            Welcome back, {getGreetingName(userInfo)}
+          </h1>
+          <p className="text-xs sm:text-sm text-zinc-400">
+            Here is your active content pipeline status for today.
           </p>
-        </button>
-
-        <button
-          onClick={() => router.push("/content")}
-          className="p-4 sm:p-6 rounded-xl text-left transition-all sm:hover:scale-[1.02]"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <div
-            className="w-11 h-11 rounded-lg flex items-center justify-center mb-3"
-            style={{
-              backgroundColor: "var(--color-surface-hover)",
-              color: "var(--color-text)",
-            }}
-          >
-            <FiEdit3 className="w-5 h-5" />
-          </div>
-          <h3
-            className="text-lg font-semibold mb-2"
-            style={{ color: "var(--color-text)" }}
-          >
-            Create Content
-          </h3>
-          <p
-            className="text-sm"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
-            Generate AI-powered content for your audience
-          </p>
-        </button>
-
-        <button
-          onClick={() => router.push("/analytics")}
-          className="p-4 sm:p-6 rounded-xl text-left transition-all sm:hover:scale-[1.02]"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <div
-            className="w-11 h-11 rounded-lg flex items-center justify-center mb-3"
-            style={{
-              backgroundColor: "var(--color-surface-hover)",
-              color: "var(--color-text)",
-            }}
-          >
-            <FiBarChart2 className="w-5 h-5" />
-          </div>
-          <h3
-            className="text-lg font-semibold mb-2"
-            style={{ color: "var(--color-text)" }}
-          >
-            View Analytics
-          </h3>
-          <p
-            className="text-sm"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
-            Track your content performance
-          </p>
-        </button>
-
-        <button
-          onClick={() => router.push("/dashboard/planning")}
-          className="p-4 sm:p-6 rounded-xl text-left transition-all sm:hover:scale-[1.02]"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <div
-            className="w-11 h-11 rounded-lg flex items-center justify-center mb-3"
-            style={{
-              backgroundColor: "var(--color-surface-hover)",
-              color: "var(--color-text)",
-            }}
-          >
-            <FiCalendar className="w-5 h-5" />
-          </div>
-          <h3
-            className="text-lg font-semibold mb-2"
-            style={{ color: "var(--color-text)" }}
-          >
-            Schedule Content
-          </h3>
-          <p
-            className="text-sm"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
-            Schedule and manage your content calendar
-          </p>
-        </button>
-      </div>
-
-      <div
-        className="mt-6 sm:mt-8 rounded-xl p-4 sm:p-6"
-        style={{
-          backgroundColor: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-        }}
-      >
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div>
-            <h2
-              className="text-lg sm:text-xl font-semibold"
-              style={{ color: "var(--color-text)" }}
-            >
-              Recent Saved Ideas
-            </h2>
-            <p
-              className="text-sm"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
-              Pick up where you left off.
-            </p>
-          </div>
-          <button
-            onClick={() => router.push("/ideation/my-ideas")}
-            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-            style={{
-              backgroundColor: "var(--color-surface-hover)",
-              color: "var(--color-text)",
-            }}
-          >
-            View all ideas
-            <FiArrowRight className="w-4 h-4" />
-          </button>
         </div>
 
-        {ideasLoading ? (
-          <p style={{ color: "var(--color-text-secondary)" }}>
-            Loading ideas...
-          </p>
-        ) : recentIdeas.length === 0 ? (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border border-dashed border-slate-800 rounded-xl bg-slate-950/20">
-            <div>
-              <p className="font-medium text-white">No ideas saved.</p>
-              <p className="text-sm mt-1 text-slate-400">
-                Generate personalized ideas tailored to your creator profile.
-              </p>
-            </div>
-            <button
-              onClick={() => router.push("/ideation")}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-slate-950 hover:bg-slate-200 transition-colors whitespace-nowrap"
-            >
-              Generate Ideas
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {recentIdeas.map((idea) => (
-              <button
-                key={idea.ideaId}
-                onClick={() => router.push("/ideation/my-ideas")}
-                className="text-left p-4 rounded-lg"
-                style={{
-                  border: "1px solid var(--color-border)",
-                  backgroundColor: "var(--color-background)",
-                }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span
-                    className="text-xs px-2 py-1 rounded"
-                    style={{
-                      backgroundColor: "var(--color-surface-hover)",
-                      color: "var(--color-text-secondary)",
-                    }}
-                  >
-                    {idea.platform}
-                  </span>
-                  <span
-                    className="text-xs font-semibold"
-                    style={{ color: "var(--color-text)" }}
-                  >
-                    {formatScore(idea.scores?.overall)}/10
-                  </span>
-                </div>
-                <p
-                  className="text-sm font-medium line-clamp-2"
-                  style={{ color: "var(--color-text)" }}
-                >
-                  {idea.topic}
-                </p>
-              </button>
-            ))}
+        {hasProfile && creatorProfile?.niche?.primary && (
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 self-start sm:self-center">
+            <Badge variant="default" className="text-xs">
+              {creatorProfile.niche.primary}
+            </Badge>
+            {creatorProfile.goals?.creatorLevel && (
+              <Badge variant="outline" className="capitalize text-xs">
+                {creatorProfile.goals.creatorLevel}
+              </Badge>
+            )}
+            {Array.isArray(creatorProfile.platforms) && (
+              <span className="text-[11px] text-zinc-500 font-medium px-1">
+                {creatorProfile.platforms.length} Platforms Linked
+              </span>
+            )}
           </div>
         )}
       </div>
 
-      <div
-        className="mt-6 sm:mt-8 rounded-xl p-4 sm:p-6"
-        style={{
-          backgroundColor: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-        }}
-      >
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div>
-            <h2
-              className="text-lg sm:text-xl font-semibold"
-              style={{ color: "var(--color-text)" }}
+      {/* 4-Stage Quick Action Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {quickActions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <Link
+              key={action.title}
+              href={action.href}
+              className="p-5 rounded-2xl border border-zinc-800/80 bg-zinc-900/30 hover:bg-zinc-900/60 hover:border-zinc-700 transition-all flex flex-col justify-between space-y-4 group"
             >
-              Recently Added Content
-            </h2>
-            <p
-              className="text-sm"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
-              Your latest generated content.
-            </p>
-          </div>
-          <button
-            onClick={() => router.push("/content/library")}
-            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-            style={{
-              backgroundColor: "var(--color-surface-hover)",
-              color: "var(--color-text)",
-            }}
-          >
-            View all content
-            <FiArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {contentLoading ? (
-          <p style={{ color: "var(--color-text-secondary)" }}>
-            Loading content...
-          </p>
-        ) : recentContent.length === 0 ? (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border border-dashed border-slate-800 rounded-xl bg-slate-950/20">
-            <div>
-              <p className="font-medium text-white">No content yet.</p>
-              <p className="text-sm mt-1 text-slate-400">
-                Create single posts or multi-platform threads with our studio.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.push("/ideation/my-ideas")}
-                className="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-700 text-white hover:bg-slate-900 transition-colors whitespace-nowrap"
-              >
-                Explore Ideas
-              </button>
-              <button
-                onClick={() => router.push("/content")}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-slate-950 hover:bg-slate-200 transition-colors whitespace-nowrap"
-              >
-                Create Content
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {recentContent.map((content, index) => (
-              <button
-                key={`${content._id || content.contentId || content.ideaId || content.createdAt || "content"}-${index}`}
-                onClick={() => router.push("/content/library")}
-                className="text-left p-4 rounded-lg transition-all hover:shadow-md min-h-[140px] flex flex-col"
-                style={{
-                  border: "1px solid var(--color-border)",
-                  backgroundColor: "var(--color-background)",
-                }}
-              >
-                <div className="flex items-center justify-between gap-2 mb-3 flex-shrink-0">
-                  <span
-                    className="text-xs px-2 py-1 rounded capitalize whitespace-nowrap overflow-hidden text-ellipsis max-w-[50%]"
-                    style={{
-                      backgroundColor: "var(--color-surface-hover)",
-                      color: "var(--color-text-secondary)",
-                    }}
-                  >
-                    {content.contentType || "post"}
-                  </span>
-                  <span
-                    className="text-xs whitespace-nowrap flex-shrink-0"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    {getPlatformCount(content)} platforms
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-200 group-hover:scale-105 group-hover:border-zinc-700 transition-all shadow-sm">
+                    <Icon className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-800/80 text-zinc-400 border border-zinc-700/50 uppercase tracking-wider">
+                    {action.badge}
                   </span>
                 </div>
-                <p
-                  className="text-sm font-medium line-clamp-2 flex-grow break-words overflow-hidden"
-                  style={{
-                    color: "var(--color-text)",
-                    wordBreak: "break-word",
-                    overflowWrap: "break-word",
-                    hyphens: "auto",
-                  }}
-                >
-                  {content.topic || content.title || "Untitled Content"}
+                <h3 className="text-sm font-semibold text-zinc-100 group-hover:text-white transition-colors">
+                  {action.title}
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  {action.description}
                 </p>
-                {content.createdAt && (
-                  <p
-                    className="text-xs mt-3 flex-shrink-0"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    {new Date(content.createdAt).toLocaleDateString()}
-                  </p>
-                )}
-              </button>
-            ))}
+              </div>
+
+              <div className="flex items-center gap-1 text-xs font-semibold text-zinc-400 group-hover:text-zinc-200 transition-colors pt-2 border-t border-zinc-800/50">
+                <span>Open module</span>
+                <FiArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Main Two-Column Activity Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Ideas Section */}
+        <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+            <div className="flex items-center gap-2">
+              <FiZap className="w-4 h-4 text-amber-400" />
+              <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+                Recent Ideas
+              </h2>
+            </div>
+            <Link
+              href="/ideation/my-ideas"
+              className="text-xs font-medium text-zinc-400 hover:text-zinc-200 flex items-center gap-1 transition-colors"
+            >
+              View all
+              <FiArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-        )}
+
+          {ideasLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : recentIdeas.length > 0 ? (
+            <div className="space-y-3">
+              {recentIdeas.map((idea) => {
+                const ideaTitle = idea.topic || (idea as any).title || "Content Concept";
+                const score = typeof idea.scores?.overall === "number"
+                  ? idea.scores.overall
+                  : typeof (idea as any).score === "number"
+                  ? (idea as any).score
+                  : 0;
+                return (
+                  <div
+                    key={idea.ideaId}
+                    className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900/60 transition-all flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-zinc-200 truncate">
+                          {ideaTitle}
+                        </span>
+                        {idea.status && (
+                          <span
+                            className={`px-1.5 py-0.2 text-[9px] font-semibold uppercase tracking-wider rounded ${
+                              idea.status === "selected"
+                                ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40"
+                                : "bg-zinc-900 text-zinc-400 border border-zinc-800"
+                            }`}
+                          >
+                            {idea.status}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-400 line-clamp-1">
+                        {idea.angle || idea.hookIdea || (idea as any).description || "Structured concept ready for drafting"}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {score > 0 && (
+                        <div className="px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-right">
+                          <span className="text-xs font-bold text-amber-400">
+                            {score.toFixed(1)}
+                          </span>
+                          <span className="text-[9px] text-zinc-500 block">Score</span>
+                        </div>
+                      )}
+                      <Link
+                        href={`/content/create?ideaId=${idea.ideaId}`}
+                        className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition-colors"
+                      >
+                        Draft
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              icon={FiCompass}
+              title="No ideas generated yet"
+              description="Start with our Zero-Idea generator or refine a rough concept to build your library."
+              actionHref="/ideation"
+              actionLabel="Generate Ideas"
+            />
+          )}
+        </div>
+
+        {/* Recent Content Drafts Section */}
+        <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+            <div className="flex items-center gap-2">
+              <FiLayers className="w-4 h-4 text-amber-400" />
+              <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+                Recent Drafts
+              </h2>
+            </div>
+            <Link
+              href="/content/library"
+              className="text-xs font-medium text-zinc-400 hover:text-zinc-200 flex items-center gap-1 transition-colors"
+            >
+              View library
+              <FiArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {contentLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : recentContent.length > 0 ? (
+            <div className="space-y-3">
+              {recentContent.map((item) => (
+                <div
+                  key={item.contentId || item.id}
+                  className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900/60 transition-all flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <span className="text-xs font-semibold text-zinc-200 truncate block">
+                      {item.title || "Untitled Draft"}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-zinc-400 capitalize">
+                        {item.type || "Post"}
+                      </span>
+                      {item.status && (
+                        <span className="px-1.5 py-0.2 text-[9px] font-semibold uppercase tracking-wider rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
+                          {item.status}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <Link
+                    href={`/content/${item.contentId || item.id}`}
+                    className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition-colors shrink-0"
+                  >
+                    View
+                  </Link>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={FiEdit3}
+              title="No content drafts yet"
+              description="Transform an idea into full, tailored platform drafts with the creation wizard."
+              actionHref="/content/create"
+              actionLabel="Create Post"
+            />
+          )}
+        </div>
       </div>
     </div>
   );

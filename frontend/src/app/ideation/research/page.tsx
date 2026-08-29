@@ -10,14 +10,17 @@ import {
 } from "@/lib/api/ideation";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { useAuth } from "@/hooks/useAuth";
-import ReactMarkdown from "react-markdown";
+import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { Badge } from "@/components/ui/Badge";
 import {
   FiAlertCircle,
   FiArrowLeft,
+  FiArrowRight,
   FiCheck,
   FiSearch,
   FiTarget,
   FiZap,
+  FiLayers,
 } from "react-icons/fi";
 
 type SelectedIdea = Pick<
@@ -38,7 +41,7 @@ function normalizeSelectedIdea(raw: unknown): SelectedIdea {
   return {
     topic: String(data.topic || data.title || "").trim(),
     angle: String(data.angle || "General strategic angle").trim(),
-    platform: String(data.platform || "youtube").trim(),
+    platform: String(data.platform || "linkedin").trim(),
     contentType: String(data.contentType || data.format || "post").trim(),
     targetAudience: String(
       data.targetAudience || data.audience || "General audience",
@@ -62,13 +65,10 @@ function normalizeSelectedIdea(raw: unknown): SelectedIdea {
 }
 
 function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
+  if (error instanceof Error) return error.message;
   return "Something went wrong";
 }
 
-// Helper to safely format scores
 const formatScore = (score: number | string | undefined): string => {
   if (typeof score === "number") return score.toFixed(1);
   if (typeof score === "string") return parseFloat(score).toFixed(1);
@@ -125,45 +125,23 @@ export default function ResearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<SelectedIdea | null>(null);
 
-  const getMissingFields = (idea: SelectedIdea) => {
-    const missing: string[] = [];
-    if (!idea.topic?.trim()) missing.push("topic");
-    if (!idea.angle?.trim()) missing.push("angle");
-    if (!idea.platform?.trim()) missing.push("platform");
-    if (!idea.targetAudience?.trim()) missing.push("targetAudience");
-    return missing;
-  };
-
   useEffect(() => {
     const storedIdea = sessionStorage.getItem("selectedIdea");
     if (!storedIdea) {
       router.push("/ideation");
       return;
     }
-
     try {
       const parsed = JSON.parse(storedIdea);
-      const normalized = normalizeSelectedIdea(parsed);
-      setSelectedIdea(normalized);
-      sessionStorage.setItem("selectedIdea", JSON.stringify(normalized));
+      setSelectedIdea(normalizeSelectedIdea(parsed));
     } catch {
       router.push("/ideation");
     }
   }, [router]);
 
   const handleResearch = async () => {
-    if (!selectedIdea) return;
-
-    if (!authReady || !userInfo?.userId || !token) {
-      setError("Please wait for authentication to complete");
-      return;
-    }
-
-    const missingFields = getMissingFields(selectedIdea);
-    if (missingFields.length > 0) {
-      setError(
-        `Idea data is incomplete: ${missingFields.join(", ")}. Please reselect an idea from rough/full flow.`,
-      );
+    if (!selectedIdea || !userInfo?.userId || !token) {
+      setError("Your session is not ready. Please refresh and try again.");
       return;
     }
 
@@ -177,9 +155,10 @@ export default function ResearchPage() {
       });
 
       if (result.success && result.research) {
-        setResearch(normalizeResearchResponse(result.research));
+        const normalized = normalizeResearchResponse(result.research);
+        setResearch(normalized);
       } else {
-        setError(result.error || "Failed to research idea");
+        setError(result.error || "Failed to generate research");
       }
     } catch (err: unknown) {
       setError(toErrorMessage(err));
@@ -188,340 +167,234 @@ export default function ResearchPage() {
     }
   };
 
-  const handleApprove = async () => {
-    if (!selectedIdea) return;
-
-    if (!authReady || !userInfo?.userId || !token) {
-      setError("Please wait for authentication to complete");
-      return;
-    }
-
-    const missingFields = getMissingFields(selectedIdea);
-    if (missingFields.length > 0) {
-      setError(
-        `Cannot save idea. Missing: ${missingFields.join(", ")}. Please go back and reselect.`,
-      );
-      return;
-    }
-
+  const handleProceed = async () => {
+    if (!selectedIdea || !userInfo?.userId || !token) return;
     setLoading(true);
+    setError(null);
 
     try {
-      const normalizedResearch = research
-        ? normalizeResearchResponse(research)
-        : null;
-
-      const result = await selectIdea(token, {
+      const payload: Partial<IdeaBrief> = {
         topic: selectedIdea.topic,
         angle: selectedIdea.angle,
         platform: selectedIdea.platform,
         contentType: selectedIdea.contentType,
         targetAudience: selectedIdea.targetAudience,
-        hookIdea: selectedIdea.hookIdea,
-        keyPoints: normalizedResearch?.keyPoints || [],
-        research: normalizedResearch
-          ? {
-              audiencePainPoints: normalizedResearch.audiencePainPoints || [],
-              competitorPatterns: normalizedResearch.competitorPatterns || [],
-              recommendedStructure: normalizedResearch.recommendedStructure,
-              keyPoints: normalizedResearch.keyPoints || [],
-              yourAngleStrength: normalizedResearch.yourAngleStrength,
-            }
-          : undefined,
+        hookIdea: selectedIdea.hookIdea || undefined,
         scores: selectedIdea.scores,
-      });
+        research: research || undefined,
+      };
 
-      if (result.success) {
-        sessionStorage.removeItem("selectedIdea");
-        router.push("/ideation/success?id=" + result.ideaId);
-      } else {
-        setError(result.error || "Failed to save idea");
+      const selectResult = await selectIdea(token, payload);
+      if (!selectResult.success) {
+        setError(selectResult.error || "Failed to save idea");
+        setLoading(false);
+        return;
       }
+
+      sessionStorage.setItem("ideaId", selectResult.ideaId || "");
+      sessionStorage.setItem("selectedIdea", JSON.stringify(payload));
+      router.push("/ideation/success");
     } catch (err: unknown) {
       setError(toErrorMessage(err));
-    } finally {
       setLoading(false);
     }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 8) return "text-emerald-400";
+    if (score >= 6) return "text-amber-400";
+    return "text-rose-400";
   };
 
   if (!selectedIdea) {
     return (
       <AuthenticatedLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div style={{ color: "var(--color-text-secondary)" }}>Loading...</div>
+        <div className="p-12 text-center text-zinc-500 text-xs">
+          Loading concept context...
         </div>
       </AuthenticatedLayout>
     );
   }
 
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return "text-green-600 bg-green-50";
-    if (score >= 6) return "text-yellow-600 bg-yellow-50";
-    return "text-red-600 bg-red-50";
-  };
-
   return (
     <AuthenticatedLayout>
-      <div className="w-full max-w-5xl mx-auto overflow-x-hidden">
-        <div className="mb-8">
+      <div className="max-w-5xl mx-auto space-y-6 pb-12">
+        {/* Page Header */}
+        <div className="space-y-2">
           <button
+            type="button"
             onClick={() => router.back()}
-            className="mb-4 flex items-center gap-2"
-            style={{ color: "var(--color-text-secondary)" }}
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
           >
-            <FiArrowLeft className="w-4 h-4" />
+            <FiArrowLeft className="w-3.5 h-3.5" />
             Back
           </button>
-          <h1
-            className="text-3xl font-bold mb-2"
-            style={{ color: "var(--color-text)" }}
-          >
-            Research and Validation
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">
+              Stage 1.5 — Deep Market Research & Validation
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            Concept Research & Competitive Angles
           </h1>
-          <p style={{ color: "var(--color-text-secondary)" }}>
-            Understand audience pain points and competitor patterns
+          <p className="text-xs sm:text-sm text-zinc-400">
+            Synthesize audience pain points, proven viral hooks, and structural blueprints before drafting.
           </p>
         </div>
 
-        {/* Selected Idea Summary */}
-        <div
-          className="rounded-xl p-8 mb-8"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <h3
-            className="text-lg font-semibold mb-4"
-            style={{ color: "var(--color-text)" }}
-          >
-            Selected Idea
-          </h3>
-          <div
-            className="p-6 rounded-lg mb-4"
-            style={{
-              backgroundColor: "var(--color-surface-hover)",
-              borderLeft: "4px solid var(--color-text)",
-            }}
-          >
-            <h4
-              className="font-semibold mb-2"
-              style={{ color: "var(--color-text)" }}
-            >
+        {/* Selected Concept Overview Card */}
+        <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Badge variant="default" className="text-[10px]">
+                {selectedIdea.platform}
+              </Badge>
+              <Badge variant="secondary" className="text-[10px]">
+                {selectedIdea.contentType}
+              </Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {selectedIdea.targetAudience}
+              </Badge>
+            </div>
+            {selectedIdea.scores && (
+              <span className={`text-base font-bold ${getScoreColor(selectedIdea.scores.overall)}`}>
+                Score: {formatScore(selectedIdea.scores.overall)}
+              </span>
+            )}
+          </div>
+
+          <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2.5">
+            <h2 className="text-base font-bold text-zinc-100">
               {selectedIdea.topic}
-            </h4>
+            </h2>
             {selectedIdea.hookIdea && (
-              <div
-                className="text-sm mb-3 flex items-center gap-2"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                <FiTarget className="w-4 h-4" />
-                <span className="font-medium">Hook:</span>
-                <div className="flex-1">
-                  <ReactMarkdown
-                    components={{
-                      p: ({ children }) => <span>{children}</span>,
-                    }}
-                  >
-                    {selectedIdea.hookIdea}
-                  </ReactMarkdown>
+              <div className="p-3 rounded-lg bg-zinc-900/80 border border-zinc-800/80 flex items-start gap-2.5">
+                <FiTarget className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-zinc-300 flex-1">
+                  <span className="font-semibold text-amber-400">Hook: </span>
+                  <MarkdownRenderer content={selectedIdea.hookIdea} className="inline" />
                 </div>
               </div>
             )}
-            <div className="flex flex-wrap gap-2 text-sm">
-              <span
-                className="px-3 py-1 rounded-full border"
-                style={{ borderColor: "var(--color-border)" }}
-              >
-                {selectedIdea.platform}
-              </span>
-              <span
-                className="px-3 py-1 rounded-full border"
-                style={{ borderColor: "var(--color-border)" }}
-              >
-                {selectedIdea.contentType}
-              </span>
-              <span
-                className="px-3 py-1 rounded-full border flex items-center gap-1"
-                style={{ borderColor: "var(--color-border)" }}
-              >
-                <FiTarget className="w-3 h-3" />
-                {selectedIdea.targetAudience}
-              </span>
-              {selectedIdea.scores && (
-                <span
-                  className={`px-3 py-1 rounded-full font-medium ${getScoreColor(selectedIdea.scores.overall)}`}
-                >
-                  Score: {formatScore(selectedIdea.scores.overall)}/10
-                </span>
-              )}
-            </div>
+            {selectedIdea.angle && (
+              <div className="text-xs text-zinc-400">
+                <span className="font-semibold text-zinc-300">Angle: </span>
+                <MarkdownRenderer content={selectedIdea.angle} className="inline" />
+              </div>
+            )}
           </div>
 
           {!research && (
             <button
+              type="button"
               onClick={handleResearch}
               disabled={loading}
-              className="w-full py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
-              style={{
-                backgroundColor: "var(--color-text)",
-                color: "var(--color-background)",
-              }}
+              className="w-full py-3 px-6 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs sm:text-sm font-semibold transition-all transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
             >
               <FiSearch className="w-4 h-4" />
-              {loading ? "Researching..." : "Start Research"}
+              {loading ? "Conducting Deep Market Research..." : "Start Research & Competitive Analysis"}
             </button>
           )}
         </div>
 
-        {/* Error */}
         {error && (
-          <div
-            className="px-6 py-4 rounded-lg mb-8"
-            style={{ border: "1px solid #7f1d1d", color: "#fca5a5" }}
-          >
-            {error}
+          <div className="p-4 rounded-xl border border-rose-800/40 bg-rose-950/30 text-rose-300 text-xs sm:text-sm flex items-center gap-2.5">
+            <FiAlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Research Results */}
+        {/* Research Results Grid */}
         {research && (
           <div className="space-y-6">
             {/* Audience Pain Points */}
-            <div
-              className="rounded-xl p-8"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              <h3
-                className="text-xl font-semibold mb-4 flex items-center gap-2"
-                style={{ color: "var(--color-text)" }}
-              >
-                <FiAlertCircle className="w-5 h-5" />
-                Audience Pain Points
-              </h3>
-              <div className="space-y-3">
-                {research.audiencePainPoints &&
-                  research.audiencePainPoints.map(
-                    (pain: string, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex items-start gap-3 p-4 rounded-lg border-l-4"
-                        style={{
-                          backgroundColor: "var(--color-surface-hover)",
-                          borderLeftColor: "#ef4444",
-                        }}
-                      >
-                        <span className="text-red-600 font-bold text-lg">
-                          {idx + 1}
-                        </span>
-                        <div
-                          className="flex-1 text-sm"
-                          style={{ color: "var(--color-text-secondary)" }}
-                        >
-                          <ReactMarkdown>{pain}</ReactMarkdown>
-                        </div>
-                      </div>
-                    ),
-                  )}
+            <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-4">
+              <div className="flex items-center gap-2">
+                <FiAlertCircle className="w-4 h-4 text-rose-400" />
+                <h3 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+                  Audience Pain Points & Trigger Points
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {research.audiencePainPoints?.map((pain: string, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800/80 flex items-start gap-3"
+                  >
+                    <span className="w-5 h-5 rounded-md bg-rose-950/60 text-rose-400 border border-rose-800/40 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <div className="text-xs text-zinc-300 flex-1">
+                      <MarkdownRenderer content={pain} />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
             {/* Competitor Patterns */}
-            <div
-              className="rounded-xl p-8"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              <h3
-                className="text-xl font-semibold mb-4 flex items-center gap-2"
-                style={{ color: "var(--color-text)" }}
-              >
-                <FiTarget className="w-5 h-5" />
-                What Is Already Working
-              </h3>
-              <div className="space-y-3">
-                {research.competitorPatterns &&
-                  research.competitorPatterns.map(
-                    (pattern: string, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex items-start gap-3 p-4 rounded-lg border-l-4"
-                        style={{
-                          backgroundColor: "var(--color-surface-hover)",
-                          borderLeftColor: "#22c55e",
-                        }}
-                      >
-                        <FiCheck className="w-5 h-5 text-green-500" />
-                        <div
-                          className="flex-1 text-sm"
-                          style={{ color: "var(--color-text-secondary)" }}
-                        >
-                          <ReactMarkdown>{pattern}</ReactMarkdown>
-                        </div>
-                      </div>
-                    ),
-                  )}
+            <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-4">
+              <div className="flex items-center gap-2">
+                <FiTarget className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+                  Proven Frameworks & What Works
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {research.competitorPatterns?.map((pat: string, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800/80 flex items-start gap-3"
+                  >
+                    <FiCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="text-xs text-zinc-300 flex-1">
+                      <MarkdownRenderer content={pat} />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Your Angle */}
-            {research.yourAngleStrength && (
-              <div
-                className="rounded-xl p-8"
-                style={{
-                  backgroundColor: "var(--color-surface)",
-                  border: "1px solid var(--color-border)",
-                }}
-              >
-                <h3
-                  className="text-xl font-semibold mb-4 flex items-center gap-2"
-                  style={{ color: "var(--color-text)" }}
-                >
-                  <FiZap className="w-5 h-5" />
-                  Your Angle Strength
-                </h3>
-                <div
-                  className="p-6 rounded-lg"
-                  style={{
-                    backgroundColor: "var(--color-surface-hover)",
-                    borderLeft: "4px solid var(--color-text)",
-                  }}
-                >
-                  <p style={{ color: "var(--color-text-secondary)" }}>
-                    {research.yourAngleStrength}
-                  </p>
+            {/* Angle Strength & Structure */}
+            {(research.yourAngleStrength || research.recommendedStructure) && (
+              <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-4">
+                <div className="flex items-center gap-2">
+                  <FiZap className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+                    Strategy & Recommended Structure
+                  </h3>
                 </div>
+
+                {research.yourAngleStrength && (
+                  <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-1.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                      Why Your Angle Wins
+                    </p>
+                    <MarkdownRenderer content={research.yourAngleStrength} />
+                  </div>
+                )}
+
+                {research.recommendedStructure && (
+                  <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-1.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                      Recommended Outline Flow
+                    </p>
+                    <MarkdownRenderer content={research.recommendedStructure} />
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex gap-4">
+            {/* Next Step Action */}
+            <div className="pt-2">
               <button
-                onClick={() => setResearch(null)}
-                className="flex-1 py-3 px-6 rounded-lg font-medium transition-colors"
-                style={{
-                  backgroundColor: "var(--color-surface-hover)",
-                  color: "var(--color-text)",
-                }}
-              >
-                Research Again
-              </button>
-              <button
-                onClick={handleApprove}
+                type="button"
+                onClick={handleProceed}
                 disabled={loading}
-                className="flex-1 py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
-                style={{
-                  backgroundColor: "var(--color-text)",
-                  color: "var(--color-background)",
-                }}
+                className="w-full py-3 px-6 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs sm:text-sm font-semibold transition-all transform hover:scale-[1.01] active:scale-[0.99] shadow-sm flex items-center justify-center gap-2"
               >
-                <FiCheck className="w-4 h-4" />
-                {loading ? "Saving..." : "Approve and Save Idea"}
+                <span>Save Concept & Proceed to Content Studio</span>
+                <FiArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>
