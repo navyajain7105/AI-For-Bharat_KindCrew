@@ -5,6 +5,7 @@ import {
   AdminDeleteUserCommand,
   AdminLinkProviderForUserCommand,
   AdminGetUserCommand,
+  AdminUpdateUserAttributesCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import usersService from "../users/users.service.js";
 import usersRepository from "../users/users.repository.js";
@@ -71,20 +72,30 @@ export class CognitoLinkingService {
     let nativeSub = null;
 
     try {
-      // Step 1: AdminCreateUser (Create native Cognito profile with email and name attributes)
+      // Step 1: AdminCreateUser (Create native Cognito profile with email and required name attributes)
+      const givenName =
+        user.givenName ||
+        (user.name && !user.name.includes("@") ? user.name.split(" ")[0] : null) ||
+        normalizedEmail.split("@")[0] ||
+        "User";
+
+      const familyName =
+        user.familyName ||
+        (user.name && !user.name.includes("@") ? user.name.split(" ").slice(1).join(" ") : null) ||
+        "User";
+
+      const fullName =
+        user.name && !user.name.includes("@")
+          ? user.name
+          : `${givenName} ${familyName}`.trim();
+
       const userAttributes = [
         { Name: "email", Value: normalizedEmail },
         { Name: "email_verified", Value: "true" },
+        { Name: "given_name", Value: givenName },
+        { Name: "family_name", Value: familyName },
+        { Name: "name", Value: fullName },
       ];
-      if (user.givenName) {
-        userAttributes.push({ Name: "given_name", Value: user.givenName });
-      }
-      if (user.familyName) {
-        userAttributes.push({ Name: "family_name", Value: user.familyName });
-      }
-      if (user.name && !user.name.includes("@")) {
-        userAttributes.push({ Name: "name", Value: user.name });
-      }
 
       let createUserRes;
       try {
@@ -263,17 +274,24 @@ export class CognitoLinkingService {
       throw new Error("User does not have a native email/password account");
     }
 
+    const cleanGoogleId = (googleUserId || "").replace(/^Google_/, "");
+
     const existingGoogle = (user.authProviders || []).find(
       (p) => p.type === "google",
     );
-    if (existingGoogle && existingGoogle.providerId === googleUserId) {
+    if (
+      existingGoogle &&
+      (existingGoogle.providerId === cleanGoogleId ||
+        existingGoogle.providerId === `Google_${cleanGoogleId}` ||
+        existingGoogle.providerUserId === cleanGoogleId)
+    ) {
       return { success: true, alreadyLinked: true };
     }
 
     // Check cross-user conflict: verify no OTHER KindCrew user owns this Google account
     const conflictingUser = await this.repository.findByProviderIdentity(
       "google",
-      googleUserId,
+      cleanGoogleId,
     );
     if (conflictingUser && conflictingUser.userId !== userId) {
       const conflictError = new Error(
@@ -292,11 +310,16 @@ export class CognitoLinkingService {
         await cognitoClient.send(
           new AdminDeleteUserCommand({
             UserPoolId: userPoolId,
-            Username: `Google_${googleUserId}`,
+            Username: `Google_${cleanGoogleId}`,
           }),
         );
       } catch (deleteErr) {
-        if (deleteErr.name !== "UserNotFoundException") {
+        if (
+          deleteErr.name !== "UserNotFoundException" &&
+          deleteErr.name !== "ResourceNotFoundException" &&
+          !deleteErr.message?.includes("not found") &&
+          !deleteErr.message?.includes("does not exist")
+        ) {
           throw deleteErr;
         }
       }
@@ -307,17 +330,48 @@ export class CognitoLinkingService {
         new AdminLinkProviderForUserCommand({
           UserPoolId: userPoolId,
           DestinationUser: {
-            ProviderAttributeValue: nativeSub,
+            ProviderAttributeValue: nativeSub || user.email,
             ProviderName: "Cognito",
           },
           SourceUser: {
             ProviderAttributeName: "Cognito_Subject",
-            ProviderAttributeValue: googleUserId,
+            ProviderAttributeValue: cleanGoogleId,
             ProviderName: "Google",
           },
         }),
       );
       state = "GOOGLE_LINKED";
+
+      // Step 2b: Ensure required Cognito attributes (given_name, family_name) exist on the native user
+      try {
+        const givenName =
+          user.givenName ||
+          (user.name && !user.name.includes("@") ? user.name.split(" ")[0] : null) ||
+          (user.email ? user.email.split("@")[0] : null) ||
+          "User";
+        const familyName =
+          user.familyName ||
+          (user.name && !user.name.includes("@") ? user.name.split(" ").slice(1).join(" ") : null) ||
+          "User";
+        const fullName =
+          user.name && !user.name.includes("@")
+            ? user.name
+            : `${givenName} ${familyName}`.trim();
+
+        await cognitoClient.send(
+          new AdminUpdateUserAttributesCommand({
+            UserPoolId: userPoolId,
+            Username: nativeSub || user.email,
+            UserAttributes: [
+              { Name: "given_name", Value: givenName },
+              { Name: "family_name", Value: familyName },
+              { Name: "name", Value: fullName },
+            ],
+          }),
+        );
+      } catch (_attrErr) {
+        // Non-blocking if attribute update fails or already set
+      }
 
       // Step 3: Update DynamoDB authProviders
       const existingProviders = (user.authProviders || []).filter(
@@ -327,7 +381,7 @@ export class CognitoLinkingService {
         ...existingProviders,
         {
           type: "google",
-          providerId: googleUserId,
+          providerId: cleanGoogleId,
           linkedAt: new Date().toISOString(),
         },
       ];

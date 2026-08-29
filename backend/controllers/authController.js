@@ -68,10 +68,15 @@ export const handleLogin = (req, res) => {
 export const handleCallback = async (req, res) => {
   try {
     const frontendBaseUrl = getFrontendBaseUrl(req);
-    const { code, state, error } = req.query;
+    const { code, state, error, error_description } = req.query;
 
     if (error) {
-      return res.redirect(`${frontendBaseUrl}?error=${error}`);
+      console.error("Cognito callback returned OAuth error:", { error, error_description });
+      const reason = error_description || error;
+      if (req.session?.linkingUserId || (typeof state === "string" && state.startsWith("link_"))) {
+        return res.redirect(`${frontendBaseUrl}/settings?linking=error&reason=${encodeURIComponent(reason)}`);
+      }
+      return res.redirect(`${frontendBaseUrl}/?error=${encodeURIComponent(error)}&reason=${encodeURIComponent(reason)}`);
     }
 
     if (!state || state !== req.session.oauthState) {
@@ -88,9 +93,18 @@ export const handleCallback = async (req, res) => {
     );
 
     // ACCOUNT LINKING CALLBACK FLOW
-    if (req.session.linkingUserId) {
-      const linkingUserId = req.session.linkingUserId;
+    const isLinkingFlow = req.session.linkingUserId || (typeof state === "string" && state.startsWith("link_"));
+    if (isLinkingFlow) {
+      const linkingUserId = req.session.linkingUserId || req.session.user?.userId;
       delete req.session.linkingUserId;
+
+      if (!linkingUserId) {
+        return res.redirect(
+          `${frontendBaseUrl}/settings?linking=error&reason=${encodeURIComponent(
+            "Session expired during account linking. Please sign in and try again.",
+          )}`,
+        );
+      }
 
       try {
         const claims = await verifyCognitoIdToken(
@@ -102,7 +116,7 @@ export const handleCallback = async (req, res) => {
         if (identity.provider !== "google") {
           return res.redirect(
             `${frontendBaseUrl}/settings?linking=error&reason=${encodeURIComponent(
-              "Account linking requires logging in with Google",
+              "Please authenticate with Google to connect your Google account.",
             )}`,
           );
         }
@@ -114,6 +128,14 @@ export const handleCallback = async (req, res) => {
 
         delete req.session.oauthState;
         delete req.session.oauthNonce;
+
+        if (req.session.save) {
+          req.session.save((err) => {
+            if (err) console.error("Session save error in linking callback:", err);
+            return res.redirect(`${frontendBaseUrl}/settings?linking=success`);
+          });
+          return;
+        }
 
         return res.redirect(`${frontendBaseUrl}/settings?linking=success`);
       } catch (linkingError) {
@@ -372,19 +394,14 @@ export const getProviders = async (req, res) => {
 
     const hasGoogle = !!googleProvider;
 
-    // Password provider is connected ONLY IF a cognito entry exists AND it was NOT
-    // auto-inserted during initial Google signup (which shares the exact same linkedAt timestamp or providerId)
     const isLegacyGoogleArtifact =
       !!googleProvider &&
       !!cognitoProvider &&
-      ((cognitoProvider.providerId || cognitoProvider.providerUserId) ===
-        (googleProvider.providerId || googleProvider.providerUserId) ||
-        (typeof cognitoProvider.linkedAt === "string" &&
-          typeof googleProvider.linkedAt === "string" &&
-          cognitoProvider.linkedAt === googleProvider.linkedAt) ||
-        (typeof cognitoProvider.linkedAt === "string" &&
-          typeof user.createdAt === "string" &&
-          cognitoProvider.linkedAt === user.createdAt));
+      ((cognitoProvider.providerId &&
+        googleProvider.providerId &&
+        cognitoProvider.providerId === googleProvider.providerId) ||
+        cognitoProvider.providerId?.startsWith?.("Google_") ||
+        cognitoProvider.providerUserId?.startsWith?.("Google_"));
 
     if (isLegacyGoogleArtifact) {
       authProviders = authProviders.filter((p) => p.type !== "cognito");
@@ -470,15 +487,21 @@ export const linkGoogle = async (req, res) => {
       return res.redirect(`${frontendBaseUrl}/?error=session_expired`);
     }
 
-    const state = crypto.randomBytes(16).toString("hex");
+    const state = `link_${crypto.randomBytes(16).toString("hex")}`;
     const nonce = crypto.randomBytes(16).toString("hex");
 
     req.session.linkingUserId = userId;
     req.session.oauthState = state;
     req.session.oauthNonce = nonce;
 
-    const authUrl = getAuthorizationUrl(state, nonce);
-    // Redirect the browser directly to Cognito — no JSON round-trip.
+    const authUrl = getAuthorizationUrl(state, nonce, "Google");
+    if (req.session.save) {
+      req.session.save((err) => {
+        if (err) console.error("Session save error in linkGoogle:", err);
+        return res.redirect(authUrl);
+      });
+      return;
+    }
     return res.redirect(authUrl);
   } catch (error) {
     console.error("linkGoogle error:", error.message);

@@ -85,7 +85,7 @@ export const refreshCognitoTokens = async (refreshToken) => {
 /**
  * Generate Cognito authorization URL
  */
-export const getAuthorizationUrl = (state, nonce) => {
+export const getAuthorizationUrl = (state, nonce, identityProvider = null) => {
   const redirectUri = process.env.COGNITO_REDIRECT_URI;
 
   const params = new URLSearchParams({
@@ -95,8 +95,11 @@ export const getAuthorizationUrl = (state, nonce) => {
     redirect_uri: redirectUri,
     state,
     nonce,
-    prompt: "select_account",
   });
+
+  if (identityProvider) {
+    params.set("identity_provider", identityProvider);
+  }
 
   return `${COGNITO_DOMAIN}/oauth2/authorize?${params.toString()}`;
 };

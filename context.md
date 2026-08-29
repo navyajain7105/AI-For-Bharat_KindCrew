@@ -157,17 +157,46 @@ AI features are powered by AWS Bedrock using the Converse API.
     *   `GET /api/auth/link-google`: Initiates Hosted UI OAuth redirect with linking session tracking (`req.session.linkingUserId`).
     *   `GET /api/auth/callback`: Intercepts linking callbacks, executes AdminDeleteUser (ephemeral profile) + AdminLinkProviderForUser, updates `authProviders`, and redirects with state parameters.
 *   **Frontend UI & Modals**: Activated interactive buttons in Settings Security tab, added Password Input Modal overlay, and handled URL search parameter feedback (`?linking=success` / `?linking=error`).
-*   **Test Suite Expansion**: Created `backend/tests/cognito-linking.test.js` with mock Cognito SDK clients testing all state transitions, failure rollbacks, and cross-user conflict blocks. All 46 backend unit tests pass cleanly.
 
-## 21. Pending Work & Deferred Decisions
-*   **Render Reachability**: Troubleshoot gateway routing timeouts in Singapore region.
-*   **Database Migrations**: Enforce atomic uniques at DB-level.
+## 21. Checkpoints 2F & 2G — Session Resilience & CreatorProfile Idempotency
+*   **Fast DynamoDB Session Lookup (`authMiddleware.js`)**: Solved 401 Unauthorized API jitter on dashboard/settings by reading active session user IDs directly from Express session and querying DynamoDB directly, eliminating token verification race conditions while keeping cryptographic JWT verification intact for external requests.
+*   **CreatorProfile Idempotent Reconciliation**: Reconciled CreatorProfile 409 Conflict handling without blindly overwriting existing profile data. Idempotent create returns existing profile if duplicate POST is issued, maintaining canonical invariant `KindCrew User.userId === CreatorProfile.userId`.
 
-## 22. Next Recommended Step
-1.  Verify the Render port binding issue by explicitly listening on `0.0.0.0` in `backend/server.js`.
-2.  Begin Phase 3: Research / Ideation module features.
+## 22. Checkpoint 2H — Logout Routing & Canonical User Identity
+*   **Logout URL Routing**: Fixed frontend logout redirect URL resolution (`buildApiUrl("/api/auth/logout")`) to avoid 404s on port 3000 and cleanly clear server-side session cookies.
+*   **Canonical User Identity Preservation**: Updated `users.service.js` `getLoginUpdates()` to prevent native Cognito password logins from overwriting rich user profile names (e.g. Google-derived `Ved Rathavi`) with email prefix fallbacks (`not.vedrathavi`). Canonical user names and identity attributes in DynamoDB are preserved across both Google and Password logins.
 
-## 23. Change Log
+## 23. Checkpoint 2I — Bidirectional Account Linking & Edge Case Fortification
+*   **Direct Google OAuth for Account Linking**: `linkGoogle` invokes `getAuthorizationUrl(state, nonce, "Google")`, redirecting Email/Password users directly to Google's consent screen without Hosted UI login ambiguity.
+*   **Removed Unsupported Parameters**: Removed non-standard `prompt: "select_account"` which caused Cognito User Pool Hosted UI to return `error=invalid_request`.
+*   **Bidirectional Linking Flow**:
+    *   *Google ➔ Add Password*: Works via `POST /api/auth/link-password`.
+    *   *Email/Password ➔ Connect Google*: Works via `GET /api/auth/link-google` and callback orchestration (`linkPasswordToGoogle`).
+    *   *Cross-Account Conflict Handling*: Rejects attempts to link a Google account already owned by another KindCrew user with `GOOGLE_ACCOUNT_CONFLICT` (*"This Google account is already connected to another KindCrew user account"*).
+    *   *Idempotency*: Re-linking already connected accounts returns immediate success with 0 unnecessary AWS calls.
+*   **Cognito Required Attributes Handling**: Automatically populates required `given_name`, `family_name`, and `name` attributes with fallback derivation across all user creation and linking operations, eliminating `attributes required: [family_name]` failures.
+*   **Password Modal UX**: Added live interactive password complexity checklist and independent eye visibility toggles for password and confirmation fields.
+
+## 24. Testing Status
+*   **Unit & Integration Tests**: 68 tests passing (`npm test` from `/backend`):
+    *   `auth-session.test.js`: Session lifecycle, token verification, CSRF, and provider state endpoints.
+    *   `cognito-linking.test.js`: Full bidirectional state machines, prefix stripping, error handling, conflict checks, and idempotency.
+    *   `cognito-token-verifier.test.js`: Cryptographic signature, kid selection, and token claims verification.
+    *   `creator-profile.test.js`: Profile CRUD, IDOR authorization barriers, context extraction, and duplicate idempotency.
+    *   `users.identity.test.js`: Provider-first identity resolution, same-email conflict rejection, and name attribute preservation.
+*   **Frontend Production Build**: `npm run build` passes with 20/20 static and dynamic routes compiling cleanly with 0 TypeScript or lint errors.
+
+## 25. Deployment Status
+*   **Frontend**: Deployed to AWS Amplify.
+*   **Backend**: Deployed to Render.
+
+## 26. Next Recommended Step
+1.  Begin Phase 3: Research / Ideation module features.
+
+## 27. Change Log
+*   **2026-08-29:** Completed Checkpoint 2I: Fixed bidirectional account linking (Email/Password ➔ Google), removed invalid `prompt` parameter, resolved required Cognito attribute handling (`family_name`), added live password requirements checklist, and verified all 68 backend tests and Next.js frontend build.
+*   **2026-08-29:** Completed Checkpoint 2H: Fixed logout routing to backend API, fixed identity name preservation between Google and native password logins, and verified both Google and Password logins return identical `userId` and name attributes.
+*   **2026-08-29:** Completed Checkpoints 2F & 2G: Added fast DynamoDB session lookup in `authMiddleware.js`, eliminated dashboard 401 jitter, and made CreatorProfile 409 conflict handling strictly idempotent.
 *   **2026-08-29:** Completed Checkpoint 2E: Implemented secure Cognito Account Linking with state machines, identity resolution update with legacy migration, backend endpoints, password modal UI, and mock SDK test suite. All 46 unit tests passing. Frontend builds cleanly.
 *   **2026-08-28:** Completed Checkpoint 2D: Added Security settings tab with login method connection status, provider-state endpoint (`GET /api/auth/providers`), and 8 targeted auth provider tests. No Cognito/AWS changes. Account linking deferred. All 38 tests passing. Frontend builds successfully.
 *   **2026-08-28:** Completed Checkpoint 2C: Implemented paginated 2-step onboarding wizard, skip persistence settings, dashboard derived progress checklists, actionable empty states, and central session expiration toast alerts. All 28 tests passing.

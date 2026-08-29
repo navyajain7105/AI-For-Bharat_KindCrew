@@ -84,7 +84,11 @@ export default function SettingsPage() {
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (linkingParam === "error") {
         setActiveTab("security");
-        setErrorMessage(reasonParam || "Failed to connect Google account.");
+        let displayError = reasonParam || "Failed to connect Google account.";
+        if (displayError.toLowerCase().includes("family_name")) {
+          displayError = "Your Google account is missing a Last Name (family_name), which is required by Cognito. Please ensure your Google account has a last name configured or check Google attribute mapping in AWS Cognito.";
+        }
+        setErrorMessage(displayError);
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (loginErrorParam === "method_conflict") {
         setErrorMessage(
