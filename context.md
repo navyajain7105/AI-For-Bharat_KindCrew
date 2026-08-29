@@ -191,9 +191,10 @@ AI features are powered by AWS Bedrock using the Converse API.
 *   **Backend**: Deployed to Render.
 
 ## 26. Next Recommended Step
-1.  Begin Phase 3: Research / Ideation module features.
+1.  Begin Phase 3: Research / Ideation module expansion and direct platform publishing integrations.
 
 ## 27. Change Log
+*   **2026-08-29:** Completed UI/UX Overhaul & Repository Cleanup: Completely redesigned the landing page into a clean Bento Grid layout, unified all settings tabs in the sidebar, integrated MarkdownRenderer across all ideation and content studio views, removed obsolete landing components and dead backend dependencies (`colors`, `openai`, `react-calendar`), created comprehensive `.env.example` templates, updated the root `README.md` into an onboarding guide, and verified all 68 backend tests and Next.js frontend production build.
 *   **2026-08-29:** Completed Checkpoint 2I: Fixed bidirectional account linking (Email/Password ➔ Google), removed invalid `prompt` parameter, resolved required Cognito attribute handling (`family_name`), added live password requirements checklist, and verified all 68 backend tests and Next.js frontend build.
 *   **2026-08-29:** Completed Checkpoint 2H: Fixed logout routing to backend API, fixed identity name preservation between Google and native password logins, and verified both Google and Password logins return identical `userId` and name attributes.
 *   **2026-08-29:** Completed Checkpoints 2F & 2G: Added fast DynamoDB session lookup in `authMiddleware.js`, eliminated dashboard 401 jitter, and made CreatorProfile 409 conflict handling strictly idempotent.

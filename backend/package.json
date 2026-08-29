@@ -25,7 +25,6 @@
     "@aws-sdk/client-eventbridge": "^3.1005.0",
     "@aws-sdk/lib-dynamodb": "^3.705.0",
     "axios": "^1.13.6",
-    "colors": "^1.4.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -35,8 +34,6 @@
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^4.1.0",
     "nodemailer": "^6.10.1",
-    "openai": "^6.27.0",
-    "react-calendar": "^6.0.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

@@ -7,8 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePublishing } from "@/hooks/usePublishing";
 import { useToast } from "@/hooks/useToast";
 import type { ScheduleRecord, SuggestedTimeSlot } from "@/lib/api/publishing";
-import Calendar from "react-calendar";
-import "react-calendar/dist/Calendar.css";
+import { ModernContentCalendar } from "@/components/ui/ModernContentCalendar";
 import {
   FiAlertTriangle,
   FiCalendar,
@@ -625,47 +624,12 @@ export default function PlanningPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/80 p-4">
-              <Calendar
-                onChange={(value) => {
-                  if (value && !Array.isArray(value)) {
-                    setSelectedDate(value as Date);
-                  }
-                }}
-                onClickDay={handleCalendarDayClick}
-                value={selectedDate}
-                className="w-full planning-calendar"
-                tileClassName={({ date, view }) => {
-                  if (view !== "month") return undefined;
-                  const count = schedulesByDay.get(dayKey(date))?.length || 0;
-                  if (!count) return undefined;
-                  return count > 1
-                    ? "planning-calendar-tile--busy"
-                    : "planning-calendar-tile--scheduled";
-                }}
-                tileContent={({ date, view }) => {
-                  if (view !== "month") return null;
-                  const daySchedules = schedulesByDay.get(dayKey(date)) || [];
-                  if (!daySchedules.length) return null;
-
-                  return (
-                    <div className="pointer-events-none mt-1 flex flex-col items-center gap-1">
-                      <div className="flex items-center gap-1">
-                        {daySchedules.slice(0, 3).map((schedule) => (
-                          <span
-                            key={schedule.eventId}
-                            className="h-1.5 w-1.5 rounded-full bg-amber-400"
-                          />
-                        ))}
-                      </div>
-                      <span className="rounded bg-zinc-800/90 px-1.5 py-0.2 text-[9px] font-semibold text-zinc-300 border border-zinc-700/60">
-                        {daySchedules.length} scheduled
-                      </span>
-                    </div>
-                  );
-                }}
-              />
-            </div>
+            <ModernContentCalendar
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              onDayClick={handleCalendarDayClick}
+              schedulesByDay={schedulesByDay}
+            />
           </div>
 
           <div className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 shadow-sm">
