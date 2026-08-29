@@ -15,24 +15,22 @@ import {
   FiCompass,
   FiArrowRight,
 } from "react-icons/fi";
+import { getGreetingName } from "@/lib/userUtils";
 
 export default function DashboardPage() {
   const router = useRouter();
   const {
     userInfo,
     authReady,
-    initializeAuth,
     isAuthenticated,
     token,
   } = useAuth();
 
-  const {
-    creatorProfile,
-    hasProfile,
-    profileChecked,
-    fetchProfile,
-    profileLoading,
-  } = useAppStore();
+  const creatorProfile = useAppStore((state) => state.creatorProfile);
+  const hasProfile = useAppStore((state) => state.hasProfile);
+  const profileChecked = useAppStore((state) => state.profileChecked);
+  const profileLoading = useAppStore((state) => state.profileLoading);
+  const fetchProfile = useAppStore((state) => state.fetchProfile);
 
   const [showSetupBanner, setShowSetupBanner] = useState(true);
   const [recentIdeas, setRecentIdeas] = useState<IdeaBrief[]>([]);
@@ -68,17 +66,16 @@ export default function DashboardPage() {
     return "0.0";
   };
 
-  // Initialize auth on mount
-  useEffect(() => {
-    initializeAuth();
-  }, [initializeAuth]);
+  // Stable boolean — avoids re-running effects on every store update caused
+  // by a new isAuthenticated function reference.
+  const authenticated = !!token && !!userInfo;
 
-  // Fetch creator profile when authenticated
+  // Fetch creator profile once when authenticated and not yet checked
   useEffect(() => {
-    if (token && isAuthenticated() && !profileChecked) {
+    if (token && authenticated && !profileChecked && !profileLoading) {
       fetchProfile(token);
     }
-  }, [token, isAuthenticated, profileChecked, fetchProfile]);
+  }, [token, authenticated, profileChecked, profileLoading, fetchProfile]);
 
   useEffect(() => {
     const loadRecentIdeas = async () => {
@@ -99,10 +96,10 @@ export default function DashboardPage() {
       }
     };
 
-    if (authReady && isAuthenticated()) {
+    if (authReady && authenticated) {
       loadRecentIdeas();
     }
-  }, [authReady, isAuthenticated, userInfo?.userId, token]);
+  }, [authReady, authenticated, userInfo?.userId, token]);
 
   useEffect(() => {
     const loadRecentContent = async () => {
@@ -123,35 +120,17 @@ export default function DashboardPage() {
       }
     };
 
-    if (authReady && isAuthenticated()) {
+    if (authReady && authenticated) {
       loadRecentContent();
     }
-  }, [authReady, isAuthenticated, userInfo?.userId, token]);
+  }, [authReady, authenticated, userInfo?.userId, token]);
 
-  // Redirect to root if not authenticated
+  // Redirect to root if not authenticated after init completes
   useEffect(() => {
-    if (authReady && !isAuthenticated()) {
+    if (authReady && !authenticated) {
       router.replace("/");
     }
-  }, [authReady, isAuthenticated, router]);
-
-  if (!authReady || profileLoading) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{
-          backgroundColor: "var(--color-background)",
-          color: "var(--color-text-secondary)",
-        }}
-      >
-        Checking session...
-      </div>
-    );
-  }
-
-  if (!isAuthenticated()) {
-    return null;
-  }
+  }, [authReady, authenticated, router]);
 
   const shouldShowSetupBanner =
     profileChecked &&
@@ -171,7 +150,7 @@ export default function DashboardPage() {
           className="text-3xl sm:text-4xl font-bold mb-2"
           style={{ color: "var(--color-text)" }}
         >
-          Welcome back, {userInfo?.givenName?.split(" ")[0] || "User"}!
+          Welcome back, {getGreetingName(userInfo)}!
         </h1>
         <p
           className="text-base sm:text-lg"

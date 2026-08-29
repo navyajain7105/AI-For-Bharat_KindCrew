@@ -95,6 +95,7 @@ export const getAuthorizationUrl = (state, nonce) => {
     redirect_uri: redirectUri,
     state,
     nonce,
+    prompt: "select_account",
   });
 
   return `${COGNITO_DOMAIN}/oauth2/authorize?${params.toString()}`;

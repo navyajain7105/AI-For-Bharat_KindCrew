@@ -98,9 +98,20 @@ export async function createCreatorProfile(
       let message = `Failed to create profile (HTTP ${response.status})`;
 
       try {
-        const parsed = JSON.parse(raw) as { error?: string; message?: string };
+        const parsed = JSON.parse(raw) as { error?: string; message?: string; code?: string; data?: any };
+        if (response.status === 409 && parsed.code === "PROFILE_ALREADY_EXISTS") {
+          // Profile already exists: reconcile frontend with the existing profile without overwriting data
+          if (parsed.data?.creatorId) {
+            return parsed.data;
+          }
+          const freshProfile = await getMyProfile(token);
+          if (freshProfile?.creatorId) {
+            return freshProfile;
+          }
+        }
         message = parsed.error || parsed.message || message;
-      } catch {
+      } catch (parseErr: any) {
+        if (parseErr?.creatorId) return parseErr;
         if (raw) {
           message = `${message}: ${raw}`;
         }

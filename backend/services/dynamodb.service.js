@@ -118,11 +118,15 @@ class DynamoDBService {
     const users = await this.scanAllItems(usersTable);
 
     return users.find((user) =>
-      (user.authProviders || []).some(
-        (identity) =>
-          identity.type === provider &&
-          (identity.providerId || identity.providerUserId) === providerUserId,
-      ),
+      (user.authProviders || []).some((identity) => {
+        const id = identity.providerId || identity.providerUserId;
+        if (!id) return false;
+        if (identity.type !== provider) return false;
+        if (id === providerUserId) return true;
+        if (id === `Google_${providerUserId}`) return true;
+        if (providerUserId.startsWith("Google_") && id === providerUserId.replace(/^Google_/, "")) return true;
+        return false;
+      }),
     );
   }
 

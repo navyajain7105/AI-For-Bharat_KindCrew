@@ -5,17 +5,21 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useCreatorProfile } from "@/hooks/useCreatorProfile";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
-import { FiSave, FiAlertCircle, FiSettings, FiFeather, FiTrendingUp } from "react-icons/fi";
+import { FiSave, FiAlertCircle, FiSettings, FiFeather, FiTrendingUp, FiLock, FiEye, FiEyeOff, FiCheck, FiCircle } from "react-icons/fi";
+import { buildApiUrl } from "@/lib/constants";
+import { authenticatedFetch } from "@/lib/apiClient";
 
-type TabId = "creator" | "style" | "strategy";
+type TabId = "creator" | "style" | "strategy" | "security";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { token, isAuthenticated, authReady } = useAuth();
+  const { token, userInfo, authReady, logout } = useAuth();
+  const authenticated = !!token && !!userInfo;
   const {
     creatorProfile,
     profileLoading,
     profileError,
+    profileChecked,
     fetchProfile,
     updateProfile,
     createProfile,
@@ -26,6 +30,136 @@ export default function SettingsPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Connection Providers state (Checkpoint 2D & 2E)
+  const [providers, setProviders] = useState<{ type: string; connected: boolean }[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(false);
+  const [providersError, setProvidersError] = useState<string | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [linkPasswordInput, setLinkPasswordInput] = useState("");
+  const [linkPasswordConfirm, setLinkPasswordConfirm] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [linkingActionLoading, setLinkingActionLoading] = useState(false);
+
+  const fetchProviders = async () => {
+    if (!token || activeTab !== "security" || providersLoading) return;
+    setProvidersLoading(true);
+    setProvidersError(null);
+    try {
+      const response = await authenticatedFetch(buildApiUrl("/api/auth/providers"));
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data?.providers) {
+          setProviders(data.data.providers);
+        } else {
+          setProvidersError(data.message || "Failed to load provider connections.");
+        }
+      } else {
+        setProvidersError("Failed to load provider connections.");
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch provider connections:", err);
+      setProvidersError(err?.message || "Failed to load provider connections.");
+    } finally {
+      setProvidersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token && activeTab === "security") {
+      fetchProviders();
+    }
+  }, [token, activeTab]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const linkingParam = params.get("linking");
+      const loginErrorParam = params.get("login_error");
+      const reasonParam = params.get("reason");
+      if (linkingParam === "success") {
+        setActiveTab("security");
+        setSuccessMessage("Google account connected successfully!");
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (linkingParam === "error") {
+        setActiveTab("security");
+        setErrorMessage(reasonParam || "Failed to connect Google account.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (loginErrorParam === "method_conflict") {
+        setErrorMessage(
+          "This email is already connected to another login method. Please sign in using your original login method. Once signed in, you can connect additional login methods from Settings \u2192 Security.",
+        );
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, []);
+
+  const handleConnectGoogle = () => {
+    // This is a browser-navigation endpoint — no Bearer token needed.
+    // The backend authenticates via the session cookie and redirects directly
+    // to the Cognito Hosted UI.
+    window.location.href = buildApiUrl("/api/auth/link-google");
+  };
+
+  // Password complexity live validation
+  const hasMinLength = linkPasswordInput.length >= 8;
+  const hasUppercase = /[A-Z]/.test(linkPasswordInput);
+  const hasLowercase = /[a-z]/.test(linkPasswordInput);
+  const hasNumber = /[0-9]/.test(linkPasswordInput);
+  const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(linkPasswordInput);
+  const passwordsMatch = linkPasswordInput.length > 0 && linkPasswordInput === linkPasswordConfirm;
+  const isPasswordValid = hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSymbol && passwordsMatch;
+
+  const handleLinkPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    if (!hasMinLength) {
+      setErrorMessage("Password must be at least 8 characters long.");
+      return;
+    }
+    if (!hasUppercase || !hasLowercase || !hasNumber || !hasSymbol) {
+      setErrorMessage("Password must include uppercase, lowercase, numbers, and special symbols.");
+      return;
+    }
+    if (!passwordsMatch) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
+
+    setLinkingActionLoading(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      const res = await authenticatedFetch(buildApiUrl("/api/auth/link-password"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: linkPasswordInput }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setShowPasswordModal(false);
+        setLinkPasswordInput("");
+        setLinkPasswordConfirm("");
+        setShowNewPassword(false);
+        setShowConfirmPassword(false);
+        setSuccessMessage(data.message || "Email & Password linked successfully!");
+        if (data.data?.requireRelogin || data.data?.requireReloginWithPassword) {
+          setTimeout(() => {
+            logout();
+          }, 2000);
+        } else {
+          fetchProviders();
+        }
+      } else {
+        setErrorMessage(data.message || "Failed to link password credential.");
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "An unexpected error occurred.");
+    } finally {
+      setLinkingActionLoading(false);
+    }
+  };
 
   // Local Form state
   const [formData, setFormData] = useState({
@@ -49,17 +183,17 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    if (authReady && !isAuthenticated()) {
+    if (authReady && !authenticated) {
       router.replace("/");
     }
-  }, [authReady, isAuthenticated, router]);
+  }, [authReady, authenticated, router]);
 
-  // Fetch profile on mount/token ready
+  // Fetch profile once on mount/token ready when not yet checked
   useEffect(() => {
-    if (token && isAuthenticated()) {
+    if (token && authenticated && !profileChecked && !profileLoading) {
       fetchProfile(token);
     }
-  }, [token, isAuthenticated, fetchProfile]);
+  }, [token, authenticated, profileChecked, profileLoading, fetchProfile]);
 
   // Prepopulate form data when profile is loaded
   useEffect(() => {
@@ -183,17 +317,6 @@ export default function SettingsPage() {
     }
   };
 
-  if (!authReady || profileLoading) {
-    return (
-      <div
-        className="flex items-center justify-center min-h-screen"
-        style={{ backgroundColor: "var(--color-background)" }}
-      >
-        <div style={{ color: "var(--color-text-secondary)" }}>Loading Settings...</div>
-      </div>
-    );
-  }
-
   return (
     <AuthenticatedLayout>
       <div className="max-w-5xl mx-auto px-4">
@@ -263,6 +386,7 @@ export default function SettingsPage() {
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab("strategy")}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg text-left transition-colors w-full ${
                 activeTab === "strategy"
@@ -272,6 +396,19 @@ export default function SettingsPage() {
             >
               <FiTrendingUp className="w-4 h-4" />
               Strategy & Goals
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("security")}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg text-left transition-colors w-full ${
+                activeTab === "security"
+                  ? "bg-slate-800 text-white font-semibold"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900"
+              }`}
+            >
+              <FiLock className="w-4 h-4" />
+              Security
             </button>
           </div>
 
@@ -546,21 +683,234 @@ export default function SettingsPage() {
                 </div>
               )}
 
+              {/* Tab 4: Security (Login Methods) */}
+              {activeTab === "security" && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold border-b border-slate-700 pb-3 text-white">
+                    Login Methods
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    Manage your connected authentication credentials.
+                  </p>
+
+                  {providersLoading ? (
+                    <div className="text-sm text-slate-500 py-6 text-center">
+                      Loading connected credentials...
+                    </div>
+                  ) : providersError ? (
+                    <div className="p-4 rounded-xl border border-red-900/50 bg-red-950/30 text-red-400 text-sm text-center">
+                      {providersError}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Google Provider Card */}
+                      <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-white text-base">
+                            G
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-white text-left">Google Account</h4>
+                            <p className="text-xs text-slate-400 text-left mt-0.5">
+                              {providers.find((p) => p.type === "google")?.connected
+                                ? "Connected to Google"
+                                : "Not connected"}
+                            </p>
+                          </div>
+                        </div>
+                        <div>
+                          {providers.find((p) => p.type === "google")?.connected ? (
+                            <span className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-emerald-900 bg-emerald-950/50 text-emerald-400 inline-block">
+                              ✓ Connected
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={linkingActionLoading}
+                              onClick={handleConnectGoogle}
+                              className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-950 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                            >
+                              {linkingActionLoading ? "Connecting..." : "Connect Google"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Email & Password Provider Card */}
+                      <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-white text-base">
+                            @
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-white text-left">Email & Password</h4>
+                            <p className="text-xs text-slate-400 text-left mt-0.5">
+                              {providers.find((p) => p.type === "password")?.connected
+                                ? "Connected to Cognito Pool"
+                                : "Not connected"}
+                            </p>
+                          </div>
+                        </div>
+                        <div>
+                          {providers.find((p) => p.type === "password")?.connected ? (
+                            <span className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-emerald-900 bg-emerald-950/50 text-emerald-400 inline-block">
+                              ✓ Connected
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={linkingActionLoading}
+                              onClick={() => setShowPasswordModal(true)}
+                              className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-950 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                            >
+                              Add Password
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Submit Buttons */}
-              <div className="pt-4 flex justify-end">
+              {activeTab !== "security" && (
+                <div className="pt-4 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold transition-colors bg-white text-slate-950 hover:bg-slate-200 disabled:opacity-50"
+                  >
+                    <FiSave className="w-4 h-4" />
+                    {isSaving ? "Saving Settings..." : "Save Changes"}
+                  </button>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      </div>
+
+      {/* Password modal — OUTSIDE the main <form> to avoid nested-form HTML violation */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-white">Add Email & Password Login</h3>
+            <p className="text-xs text-slate-400">
+              Create a password for your account to enable direct email & password sign-in.
+            </p>
+            <form onSubmit={handleLinkPasswordSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    required
+                    minLength={8}
+                    value={linkPasswordInput}
+                    onChange={(e) => setLinkPasswordInput(e.target.value)}
+                    className="w-full px-3 py-2 pr-10 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-white"
+                    placeholder="At least 8 characters"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((prev) => !prev)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded transition-colors"
+                    aria-label={showNewPassword ? "Hide password" : "Show password"}
+                  >
+                    {showNewPassword ? (
+                      <FiEyeOff className="w-4 h-4" />
+                    ) : (
+                      <FiEye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Confirm Password</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    required
+                    minLength={8}
+                    value={linkPasswordConfirm}
+                    onChange={(e) => setLinkPasswordConfirm(e.target.value)}
+                    className="w-full px-3 py-2 pr-10 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-white"
+                    placeholder="Re-enter password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded transition-colors"
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? (
+                      <FiEyeOff className="w-4 h-4" />
+                    ) : (
+                      <FiEye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Password Requirements Checklist */}
+              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1.5 text-xs">
+                <p className="font-medium text-slate-300 mb-1">Password Requirements:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+                  <div className={`flex items-center gap-1.5 ${hasMinLength ? "text-emerald-400 font-medium" : "text-slate-500"}`}>
+                    {hasMinLength ? <FiCheck className="w-3.5 h-3.5 flex-shrink-0" /> : <FiCircle className="w-3.5 h-3.5 flex-shrink-0" />}
+                    <span>At least 8 characters</span>
+                  </div>
+                  <div className={`flex items-center gap-1.5 ${hasUppercase ? "text-emerald-400 font-medium" : "text-slate-500"}`}>
+                    {hasUppercase ? <FiCheck className="w-3.5 h-3.5 flex-shrink-0" /> : <FiCircle className="w-3.5 h-3.5 flex-shrink-0" />}
+                    <span>Uppercase letter (A-Z)</span>
+                  </div>
+                  <div className={`flex items-center gap-1.5 ${hasLowercase ? "text-emerald-400 font-medium" : "text-slate-500"}`}>
+                    {hasLowercase ? <FiCheck className="w-3.5 h-3.5 flex-shrink-0" /> : <FiCircle className="w-3.5 h-3.5 flex-shrink-0" />}
+                    <span>Lowercase letter (a-z)</span>
+                  </div>
+                  <div className={`flex items-center gap-1.5 ${hasNumber ? "text-emerald-400 font-medium" : "text-slate-500"}`}>
+                    {hasNumber ? <FiCheck className="w-3.5 h-3.5 flex-shrink-0" /> : <FiCircle className="w-3.5 h-3.5 flex-shrink-0" />}
+                    <span>Number (0-9)</span>
+                  </div>
+                  <div className={`flex items-center gap-1.5 ${hasSymbol ? "text-emerald-400 font-medium" : "text-slate-500"}`}>
+                    {hasSymbol ? <FiCheck className="w-3.5 h-3.5 flex-shrink-0" /> : <FiCircle className="w-3.5 h-3.5 flex-shrink-0" />}
+                    <span>Special symbol (!@#$...)</span>
+                  </div>
+                  <div className={`flex items-center gap-1.5 ${passwordsMatch ? "text-emerald-400 font-medium" : "text-slate-500"}`}>
+                    {passwordsMatch ? <FiCheck className="w-3.5 h-3.5 flex-shrink-0" /> : <FiCircle className="w-3.5 h-3.5 flex-shrink-0" />}
+                    <span>Passwords match</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={linkingActionLoading}
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setLinkPasswordInput("");
+                    setLinkPasswordConfirm("");
+                    setShowNewPassword(false);
+                    setShowConfirmPassword(false);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  disabled={isSaving}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold transition-colors bg-white text-slate-950 hover:bg-slate-200 disabled:opacity-50"
+                  disabled={linkingActionLoading || !isPasswordValid}
+                  className="px-4 py-2 text-xs font-semibold bg-white text-slate-950 rounded-lg hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <FiSave className="w-4 h-4" />
-                  {isSaving ? "Saving Settings..." : "Save Changes"}
+                  {linkingActionLoading ? "Saving..." : "Add Password"}
                 </button>
               </div>
             </form>
           </div>
         </div>
-      </div>
+      )}
     </AuthenticatedLayout>
   );
 }

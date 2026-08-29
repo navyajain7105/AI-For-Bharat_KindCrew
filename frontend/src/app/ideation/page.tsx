@@ -9,7 +9,8 @@ import { FiArrowRight, FiCompass, FiEdit3, FiTarget } from "react-icons/fi";
 
 export default function IdeationPage() {
   const router = useRouter();
-  const { userInfo, token } = useAuth();
+  const { userInfo, token, authReady } = useAuth();
+  const authenticated = !!token && !!userInfo;
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [recentIdeas, setRecentIdeas] = useState<IdeaBrief[]>([]);
   const [ideasLoading, setIdeasLoading] = useState(false);
@@ -86,8 +87,10 @@ export default function IdeationPage() {
       }
     };
 
-    loadRecentIdeas();
-  }, [userInfo?.userId, token]);
+    if (authReady && authenticated && token) {
+      loadRecentIdeas();
+    }
+  }, [authReady, authenticated, userInfo?.userId, token]);
 
   return (
     <AuthenticatedLayout>

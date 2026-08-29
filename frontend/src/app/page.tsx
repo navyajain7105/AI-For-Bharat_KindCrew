@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { buildApiUrl } from "@/lib/constants";
+import { toast } from "sonner";
 import { FaHeart, FaGithub } from "react-icons/fa";
 import {
   FiZap,
@@ -14,21 +15,38 @@ import {
   FiBarChart,
 } from "react-icons/fi";
 
-export default function HomePage() {
+function HomePageContent() {
   const router = useRouter();
-  const { initializeAuth, authReady, isAuthenticated } = useAuth();
+  const searchParams = useSearchParams();
+  const { token, userInfo, initializeAuth, authReady } = useAuth();
+  const authenticated = !!token && !!userInfo;
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
 
+  useEffect(() => {
+    const linking = searchParams.get("linking");
+    const reason = searchParams.get("reason");
+    const loginError = searchParams.get("login_error");
+
+    if (linking === "error" && reason) {
+      toast.error(reason);
+    } else if (loginError === "method_conflict") {
+      toast.error(
+        "This email is already connected to another login method. Please sign in using your original login method. Once signed in, you can connect additional login methods from Settings \u2192 Security.",
+        { duration: 8000 },
+      );
+    }
+  }, [searchParams]);
+
   // Redirect to dashboard if already authenticated
   useEffect(() => {
-    if (authReady && isAuthenticated()) {
+    if (authReady && authenticated) {
       router.replace("/dashboard");
     }
-  }, [authReady, isAuthenticated, router]);
+  }, [authReady, authenticated, router]);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -286,5 +304,13 @@ export default function HomePage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={null}>
+      <HomePageContent />
+    </Suspense>
   );
 }

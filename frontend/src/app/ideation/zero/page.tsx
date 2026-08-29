@@ -22,7 +22,8 @@ const formatScore = (score: number | string | undefined): string => {
 
 export default function ZeroIdeaPage() {
   const router = useRouter();
-  const { userInfo, token, isAuthenticated } = useAuth();
+  const { userInfo, token, authReady } = useAuth();
+  const authenticated = !!token && !!userInfo;
   const {
     ideas,
     selectedIdea,
@@ -35,14 +36,14 @@ export default function ZeroIdeaPage() {
     clearIdeas,
   } = useIdeation();
 
-  const { creatorProfile, fetchProfile } = useCreatorProfile();
+  const { creatorProfile, fetchProfile, profileChecked, profileLoading } = useCreatorProfile();
 
   // Fetch creator profile if token is available and profile is not loaded
   useEffect(() => {
-    if (token && isAuthenticated() && !creatorProfile) {
+    if (authReady && token && authenticated && !profileChecked && !profileLoading) {
       fetchProfile(token);
     }
-  }, [token, isAuthenticated, creatorProfile, fetchProfile]);
+  }, [authReady, token, authenticated, profileChecked, profileLoading, fetchProfile]);
 
   // Synchronize creator profile fields to ideation zero form
   useEffect(() => {

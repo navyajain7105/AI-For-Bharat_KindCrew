@@ -93,8 +93,8 @@ AI features are powered by AWS Bedrock using the Converse API.
 *   **In-Memory Token Storage:** Access tokens must remain in memory on the client side, and refresh tokens must remain in the Express session. Do not persist tokens in `localStorage`.
 
 ## 15. Testing Status
-*   **Unit Tests:** 19 unit tests passing (`node --test tests/*.test.js` from `/backend`).
-    *   Tests cover Cognito token verification, signature checking, kid selection, middleware, identity conflict resolution, DynamoDB update field serialization, and validation.
+*   **Unit Tests:** 38 unit tests passing (`node --test tests/*.test.js` from `/backend`).
+    *   Tests cover Cognito token verification, signature checking, kid selection, middleware, identity conflict resolution, DynamoDB update field serialization, validation, creator profile ownership/IDOR, onboarding skip, and auth provider state endpoint (Checkpoint 2D).
 *   **Integration status:** The backend compiles and unit tests successfully. The frontend Next.js application compiles successfully. Live Cognito logins are untested in local test suites because no live AWS credentials/redirects are hardcoded.
 
 ## 16. Deployment Status
@@ -125,15 +125,51 @@ AI features are powered by AWS Bedrock using the Converse API.
     *   *Fetch failure:* Catches 401s during active requests inside `apiClient.ts` to log out and redirect with a clean expired alert.
 *   **Test Suite Extension:** Added new assertions to `creator-profile.test.js` checking skipOnboarding action persistence, dashboard landing redirects, and CreatorContext defaults. All 28 backend test cases pass.
 
-## 19. Pending Work & Deferred Decisions
-*   **Render Reachability:** Troubleshoot gateway routing timeouts in Singapore region.
-*   **Database Migrations:** Enforce atomic uniques at DB-level.
+## 19. Checkpoint 2D — Login Methods Foundation
+*   **Security Settings Tab:** Added a "Security" tab to the existing Settings page (`/settings`) displaying login method connection status. No redesign of the existing Settings UI.
+*   **Provider State Endpoint:** `GET /api/auth/providers` — authenticated endpoint returning the current user's connected login methods as product-facing types (`google`, `password`). Protected by `authMiddleware`; derives user exclusively from `req.userId`. Never accepts client-provided user IDs.
+*   **Provider Detection Logic:** Inspects the existing `User.authProviders` array. Maps internal `cognito` type to product-facing `password` at the API presentation boundary only. Database representation unchanged.
+*   **Frontend Security UI:** Two provider cards (Google Account, Email & Password) showing "Connected" / "Not connected" status. Action buttons are disabled with "Coming Soon" labels.
+*   **Security Guarantees:**
+    *   Endpoint requires authentication (`authMiddleware`).
+    *   Uses `req.userId` exclusively — never trusts client-provided user IDs.
+    *   Never reveals another user's provider information (IDOR-safe).
+    *   Never exposes Cognito sub, provider IDs, access/refresh tokens, email discovery info, or internal database IDs.
+    *   Read-only — no provider state modification possible.
+*   **Account Linking Status:** Deliberately deferred. No `AdminLinkProviderForUser`, `AdminDeleteUser`, `AdminCreateUser`, or `AdminSetUserPassword` calls. No Cognito/AWS resource changes. Current Google/email behavior remains unchanged.
+*   **Test Suite Coverage:** Created `backend/tests/auth-providers.test.js` with 8 targeted tests:
+    1. Authenticated user with Google provider
+    2. Authenticated user with password provider
+    3. Authenticated user with both providers
+    4. Authenticated user with no provider metadata
+    5. Unauthenticated request → 401
+    6. Client cannot request another user's provider state (IDOR)
+    7. Provider IDs (sub) are not exposed
+    8. Tokens are not exposed
+*   All 38 backend tests pass. Frontend builds successfully.
 
-## 20. Next Recommended Step
+## 20. Checkpoint 2E — Cognito Account Linking
+*   **Audit & State Machine Architecture**: Modeled recoverable state machines for two distinct account-linking flows: Google → Email/Password (`linkGoogleToPassword`) and Email/Password → Google (`linkPasswordToGoogle`).
+*   **Identity Resolution & Legacy Migration**: Updated `getVerifiedCognitoIdentity` to extract Google-specific numeric IDs from `claims.identities` while carrying `cognitoSub`. Implemented a 2-step lookup in `users.service.js` (primary lookup by Google ID, legacy fallback by Cognito sub with targeted single-record providerId migration).
+*   **No Email Self-Healing**: Enforced strict invariant that email lookups are used strictly for conflict detection (`IDENTITY_LINKING_REQUIRED`), never for automatic account merging or identity repair.
+*   **Backend Endpoints**:
+    *   `POST /api/auth/link-password`: Enables Google-only accounts to create native Cognito credentials and link them securely.
+    *   `GET /api/auth/link-google`: Initiates Hosted UI OAuth redirect with linking session tracking (`req.session.linkingUserId`).
+    *   `GET /api/auth/callback`: Intercepts linking callbacks, executes AdminDeleteUser (ephemeral profile) + AdminLinkProviderForUser, updates `authProviders`, and redirects with state parameters.
+*   **Frontend UI & Modals**: Activated interactive buttons in Settings Security tab, added Password Input Modal overlay, and handled URL search parameter feedback (`?linking=success` / `?linking=error`).
+*   **Test Suite Expansion**: Created `backend/tests/cognito-linking.test.js` with mock Cognito SDK clients testing all state transitions, failure rollbacks, and cross-user conflict blocks. All 46 backend unit tests pass cleanly.
+
+## 21. Pending Work & Deferred Decisions
+*   **Render Reachability**: Troubleshoot gateway routing timeouts in Singapore region.
+*   **Database Migrations**: Enforce atomic uniques at DB-level.
+
+## 22. Next Recommended Step
 1.  Verify the Render port binding issue by explicitly listening on `0.0.0.0` in `backend/server.js`.
 2.  Begin Phase 3: Research / Ideation module features.
 
-## 21. Change Log
+## 23. Change Log
+*   **2026-08-29:** Completed Checkpoint 2E: Implemented secure Cognito Account Linking with state machines, identity resolution update with legacy migration, backend endpoints, password modal UI, and mock SDK test suite. All 46 unit tests passing. Frontend builds cleanly.
+*   **2026-08-28:** Completed Checkpoint 2D: Added Security settings tab with login method connection status, provider-state endpoint (`GET /api/auth/providers`), and 8 targeted auth provider tests. No Cognito/AWS changes. Account linking deferred. All 38 tests passing. Frontend builds successfully.
 *   **2026-08-28:** Completed Checkpoint 2C: Implemented paginated 2-step onboarding wizard, skip persistence settings, dashboard derived progress checklists, actionable empty states, and central session expiration toast alerts. All 28 tests passing.
 *   **2026-08-28:** Completed Checkpoint 2B: Implemented modular Creator Profile system, secured ownership checks, patched IDOR vulnerabilities on content ideas, integrated unified CreatorContext in AI services, and built the frontend Settings management UI. All 26 test cases passing.
 *   **2026-08-28:** Created initial `context.md` verifying the completed Cognito Authentication Revamp (Checkpoint 2A), verified the Next.js compilation, and analyzed the Render deployment timeout.

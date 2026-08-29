@@ -33,7 +33,8 @@ interface ContentItem {
 
 export default function ContentLibrary() {
   const router = useRouter();
-  const { isAuthenticated, authReady, userInfo, token } = useAuth();
+  const { authReady, userInfo, token } = useAuth();
+  const authenticated = !!token && !!userInfo;
   const [contentList, setContentList] = useState<ContentItem[]>([]);
   const [localContentList, setLocalContentList] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,16 +45,16 @@ export default function ContentLibrary() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authReady && !isAuthenticated()) {
+    if (authReady && !authenticated) {
       router.replace("/");
     }
-  }, [authReady, isAuthenticated, router]);
+  }, [authReady, authenticated, router]);
 
   useEffect(() => {
-    if (userInfo?.userId && token) {
+    if (authReady && authenticated && userInfo?.userId && token) {
       loadContent();
     }
-  }, [userInfo?.userId, token]);
+  }, [authReady, authenticated, userInfo?.userId, token]);
 
   useEffect(() => {
     if (userInfo?.userId && contentList.length >= 0) {

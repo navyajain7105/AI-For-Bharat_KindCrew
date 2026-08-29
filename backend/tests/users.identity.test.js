@@ -8,6 +8,7 @@ import {
 import { createUsersRepository } from "../src/modules/users/users.repository.js";
 import {
   IdentityLinkingRequiredError,
+  LoginMethodConflictError,
   UsersService,
 } from "../src/modules/users/users.service.js";
 import { filterDefinedEntries } from "../services/dynamodb.service.js";
@@ -222,14 +223,12 @@ test("does not create a fake user when persistence fails", async () => {
   );
 });
 
-test("identity conflict returns a generic response without fallback identity data", () => {
-  let response;
+test("identity conflict redirects user to settings with generic error", () => {
+  let redirectUrl;
   const res = {
-    status: (statusCode) => ({
-      json: (body) => {
-        response = { statusCode, body };
-      },
-    }),
+    redirect: (url) => {
+      redirectUrl = url;
+    },
   };
 
   assert.equal(
@@ -240,14 +239,245 @@ test("identity conflict returns a generic response without fallback identity dat
     }),
     true,
   );
-  assert.deepEqual(response, {
-    statusCode: 409,
-    body: {
-      success: false,
-      code: "IDENTITY_LINKING_REQUIRED",
-      message: "This email is already associated with another login method.",
+  assert.ok(redirectUrl.includes("/?linking=error&reason="));
+  assert.ok(!redirectUrl.includes("must-not-leak"));
+});
+
+test("migrates legacy Google provider record from Cognito sub to Google userId upon fallback match", async () => {
+  let updatedUserId = null;
+  let updatedPayload = null;
+
+  const legacyUser = {
+    userId: "user-legacy-123",
+    email: "legacy@example.com",
+    authProviders: [
+      { type: "google", providerId: "old-cognito-sub-111", linkedAt: "2026-01-01" },
+    ],
+  };
+
+  const repository = makeRepository({
+    findByProviderIdentity: async (provider, id) => {
+      // Primary lookup (google + google-numeric-id) misses
+      if (provider === "google" && id === "google-numeric-id-222") {
+        return null;
+      }
+      // Legacy fallback (google + old-cognito-sub-111) matches
+      if (provider === "google" && id === "old-cognito-sub-111") {
+        return legacyUser;
+      }
+      return null;
+    },
+    findById: async (id) => {
+      if (id === "user-legacy-123") {
+        return {
+          ...legacyUser,
+          authProviders: [
+            { type: "google", providerId: "google-numeric-id-222", linkedAt: "2026-01-01" },
+          ],
+        };
+      }
+      return null;
+    },
+    update: async (userId, updates) => {
+      updatedUserId = userId;
+      updatedPayload = updates;
+      return true;
+    },
+    updateOnLogin: async () => true,
+  });
+
+  const service = new UsersService(repository);
+  const resolved = await service.resolveAuthenticatedUser(
+    {
+      provider: "google",
+      providerUserId: "google-numeric-id-222",
+      cognitoSub: "old-cognito-sub-111",
+      email: "legacy@example.com",
+      emailVerified: true,
+    },
+    { name: "Legacy User" },
+    { recordLogin: true }
+  );
+
+  assert.equal(updatedUserId, "user-legacy-123");
+  assert.deepEqual(updatedPayload.authProviders, [
+    { type: "google", providerId: "google-numeric-id-222", linkedAt: "2026-01-01" },
+  ]);
+  assert.equal(resolved.userId, "user-legacy-123");
+});
+
+test("resolveAuthenticatedUser throws LoginMethodConflictError for a genuine different-provider conflict", async () => {
+  // An existing email/password (cognito-native) user tries to sign in with Google.
+  // The Google sub does NOT match any existing provider record.
+  // Should throw LoginMethodConflictError — not IdentityLinkingRequiredError.
+  const existingNativeUser = {
+    userId: "native-user-1",
+    email: "shared@example.com",
+    authProviders: [
+      { type: "cognito", providerId: "native-sub-abc", linkedAt: "2026-01-01" },
+    ],
+  };
+
+  const repository = makeRepository({
+    findByProviderIdentity: async () => null, // Google ID not found anywhere
+    findByEmail: async () => existingNativeUser,
+    findById: async () => existingNativeUser,
+    update: async () => null,
+  });
+
+  const service = new UsersService(repository);
+
+  await assert.rejects(
+    service.resolveAuthenticatedUser(
+      {
+        provider: "google",
+        providerUserId: "google-sub-brand-new",
+        email: "shared@example.com",
+        emailVerified: true,
+      },
+      { name: "Google User" },
+    ),
+    (err) => {
+      // Must be LoginMethodConflictError, not the old IdentityLinkingRequiredError
+      assert.ok(
+        err instanceof LoginMethodConflictError,
+        `Expected LoginMethodConflictError, got ${err.constructor.name}`,
+      );
+      assert.equal(err.code, "LOGIN_METHOD_CONFLICT");
+      // Must not leak user identity data
+      assert.equal(err.existingUserId, undefined);
+      assert.equal(err.identity, undefined);
+      return true;
+    },
+  );
+});
+
+test("Checkpoint 2H - Linked password login preserves canonical user name, givenName, and familyName", async () => {
+  const existingCanonicalUser = {
+    userId: "kindcrew-canonical-user-88",
+    email: "not.vedrathavi@gmail.com",
+    name: "Ved Rathavi",
+    givenName: "Ved",
+    familyName: "Rathavi",
+    profileImage: "https://avatar.google.com/ved",
+    authProviders: [
+      { type: "google", providerId: "101234567890", linkedAt: "2026-01-01" },
+      { type: "cognito", providerId: "native-sub-88", linkedAt: "2026-01-02" },
+    ],
+  };
+
+  let updateOnLoginCalledWith = null;
+
+  const repository = makeRepository({
+    findByProviderIdentity: async (provider, providerUserId) => {
+      if (provider === "cognito" && providerUserId === "native-sub-88") {
+        return existingCanonicalUser;
+      }
+      return null;
+    },
+    findById: async (userId) => {
+      if (userId === "kindcrew-canonical-user-88") {
+        return {
+          ...existingCanonicalUser,
+          ...(updateOnLoginCalledWith || {}),
+        };
+      }
+      return null;
+    },
+    updateOnLogin: async (userId, updates) => {
+      updateOnLoginCalledWith = updates;
+      return { ...existingCanonicalUser, ...updates };
     },
   });
-  assert.equal(response.body.userId, undefined);
-  assert.equal(response.body.token, undefined);
+
+  const service = new UsersService(repository);
+
+  // Incoming native Cognito password login claims (which lack given_name / family_name and have name fallback to email)
+  const incomingCognitoIdentity = {
+    provider: "cognito",
+    providerUserId: "native-sub-88",
+    email: "not.vedrathavi@gmail.com",
+    emailVerified: true,
+  };
+
+  const incomingUserData = {
+    name: "not.vedrathavi",
+    givenName: null,
+    familyName: null,
+    profileImage: null,
+    locale: null,
+  };
+
+  const resolved = await service.resolveAuthenticatedUser(
+    incomingCognitoIdentity,
+    incomingUserData,
+    { recordLogin: true },
+  );
+
+  // Must resolve to the exact same canonical User.userId
+  assert.equal(resolved.userId, "kindcrew-canonical-user-88");
+
+  // Must preserve real canonical name, givenName, and familyName (NOT overwritten by email fallback "not.vedrathavi")
+  assert.equal(resolved.name, "Ved Rathavi");
+  assert.equal(resolved.givenName, "Ved");
+  assert.equal(resolved.familyName, "Rathavi");
+  assert.equal(resolved.profileImage, "https://avatar.google.com/ved");
+
+  // Verify what was sent to updateOnLogin did NOT overwrite with null
+  assert.equal(updateOnLoginCalledWith.name, "Ved Rathavi");
+  assert.equal(updateOnLoginCalledWith.givenName, "Ved");
+  assert.equal(updateOnLoginCalledWith.familyName, "Rathavi");
+  assert.equal(updateOnLoginCalledWith.profileImage, "https://avatar.google.com/ved");
+});
+
+test("Checkpoint 2H - Both Google and Password logins for linked account return identical userId and name attributes", async () => {
+  const linkedUser = {
+    userId: "kindcrew-dual-user-99",
+    email: "creator@example.com",
+    name: "Alex Morgan",
+    givenName: "Alex",
+    familyName: "Morgan",
+    profileImage: "https://avatar.example.com/alex",
+    authProviders: [
+      { type: "google", providerId: "google-alex-1", linkedAt: "2026-01-01" },
+      { type: "cognito", providerId: "cognito-alex-1", linkedAt: "2026-01-02" },
+    ],
+  };
+
+  const repository = makeRepository({
+    findByProviderIdentity: async (provider, providerUserId) => {
+      if (
+        (provider === "google" && providerUserId === "google-alex-1") ||
+        (provider === "cognito" && providerUserId === "cognito-alex-1")
+      ) {
+        return linkedUser;
+      }
+      return null;
+    },
+    findById: async () => linkedUser,
+    updateOnLogin: async () => linkedUser,
+  });
+
+  const service = new UsersService(repository);
+
+  // Login 1: Via Google
+  const googleResolved = await service.resolveAuthenticatedUser(
+    { provider: "google", providerUserId: "google-alex-1", email: "creator@example.com", emailVerified: true },
+    { name: "Alex Morgan", givenName: "Alex", familyName: "Morgan" },
+    { recordLogin: true },
+  );
+
+  // Login 2: Via Password
+  const passwordResolved = await service.resolveAuthenticatedUser(
+    { provider: "cognito", providerUserId: "cognito-alex-1", email: "creator@example.com", emailVerified: true },
+    { name: "creator", givenName: null, familyName: null },
+    { recordLogin: true },
+  );
+
+  // Identical identity invariants
+  assert.equal(googleResolved.userId, passwordResolved.userId);
+  assert.equal(googleResolved.name, passwordResolved.name);
+  assert.equal(googleResolved.givenName, passwordResolved.givenName);
+  assert.equal(googleResolved.familyName, passwordResolved.familyName);
+  assert.equal(googleResolved.profileImage, passwordResolved.profileImage);
 });

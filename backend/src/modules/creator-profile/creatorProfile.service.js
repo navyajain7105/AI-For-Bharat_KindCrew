@@ -153,6 +153,10 @@ export class CreatorProfileService {
       "authProviders",
       "createdAt",
       "updatedAt",
+      "niche",
+      "goals",
+      "strategy",
+      "preferences",
     ];
 
     Object.keys(rawData).forEach((key) => {
@@ -161,35 +165,48 @@ export class CreatorProfileService {
       }
     });
 
-    // Special handling for nested parameters
+    // Merge nested object parameters cleanly without dot-notation path collision
     if (rawData.niche) {
-      allowedUpdates["niche.primary"] = rawData.niche.primary;
-      allowedUpdates["niche.secondary"] = rawData.niche.secondary || null;
+      allowedUpdates.niche = {
+        ...(profile.niche || {}),
+        ...(rawData.niche.primary !== undefined ? { primary: rawData.niche.primary } : {}),
+        ...(rawData.niche.secondary !== undefined ? { secondary: rawData.niche.secondary || null } : {}),
+      };
     }
     if (rawData.goals) {
-      if (rawData.goals.primaryGoal) allowedUpdates["goals.primaryGoal"] = rawData.goals.primaryGoal;
-      if (rawData.goals.creatorLevel) allowedUpdates["goals.creatorLevel"] = rawData.goals.creatorLevel;
+      allowedUpdates.goals = {
+        ...(profile.goals || {}),
+        ...(rawData.goals.primaryGoal ? { primaryGoal: rawData.goals.primaryGoal } : {}),
+        ...(rawData.goals.creatorLevel ? { creatorLevel: rawData.goals.creatorLevel } : {}),
+      };
     }
     if (rawData.strategy) {
-      if (rawData.strategy.contentStrategy) allowedUpdates["strategy.contentStrategy"] = rawData.strategy.contentStrategy;
-      if (rawData.strategy.postingFrequency) allowedUpdates["strategy.postingFrequency"] = rawData.strategy.postingFrequency;
-      if (rawData.strategy.contentPillars) allowedUpdates["strategy.contentPillars"] = rawData.strategy.contentPillars;
-      if (rawData.strategy.contentApproach) allowedUpdates["strategy.contentApproach"] = rawData.strategy.contentApproach;
+      allowedUpdates.strategy = {
+        ...(profile.strategy || {}),
+        ...(rawData.strategy.contentStrategy ? { contentStrategy: rawData.strategy.contentStrategy } : {}),
+        ...(rawData.strategy.postingFrequency ? { postingFrequency: rawData.strategy.postingFrequency } : {}),
+        ...(rawData.strategy.contentPillars ? { contentPillars: rawData.strategy.contentPillars } : {}),
+        ...(rawData.strategy.contentApproach ? { contentApproach: rawData.strategy.contentApproach } : {}),
+      };
     }
     if (rawData.preferences) {
-      if (rawData.preferences.tones) allowedUpdates["preferences.tones"] = rawData.preferences.tones;
-      if (rawData.preferences.formats) allowedUpdates["preferences.formats"] = rawData.preferences.formats;
-      if (rawData.preferences.timeCommitment) allowedUpdates["preferences.timeCommitment"] = rawData.preferences.timeCommitment;
-      if (rawData.preferences.contentStyle) allowedUpdates["preferences.contentStyle"] = rawData.preferences.contentStyle;
-      if (rawData.preferences.voiceTone) allowedUpdates["preferences.voiceTone"] = rawData.preferences.voiceTone;
-      if (rawData.preferences.avoidTopics) allowedUpdates["preferences.avoidTopics"] = rawData.preferences.avoidTopics;
-      
-      if (rawData.preferences.constraints) {
-        const constraints = rawData.preferences.constraints;
-        if (constraints.emojiUsage !== undefined) allowedUpdates["preferences.constraints.emojiUsage"] = constraints.emojiUsage;
-        if (constraints.ctaStrength) allowedUpdates["preferences.constraints.ctaStrength"] = constraints.ctaStrength;
-        if (constraints.formality) allowedUpdates["preferences.constraints.formality"] = constraints.formality;
-      }
+      allowedUpdates.preferences = {
+        ...(profile.preferences || {}),
+        ...(rawData.preferences.tones ? { tones: rawData.preferences.tones } : {}),
+        ...(rawData.preferences.formats ? { formats: rawData.preferences.formats } : {}),
+        ...(rawData.preferences.timeCommitment ? { timeCommitment: rawData.preferences.timeCommitment } : {}),
+        ...(rawData.preferences.contentStyle ? { contentStyle: rawData.preferences.contentStyle } : {}),
+        ...(rawData.preferences.voiceTone ? { voiceTone: rawData.preferences.voiceTone } : {}),
+        ...(rawData.preferences.avoidTopics ? { avoidTopics: rawData.preferences.avoidTopics } : {}),
+        ...(rawData.preferences.constraints ? {
+          constraints: {
+            ...(profile.preferences?.constraints || {}),
+            ...(rawData.preferences.constraints.emojiUsage !== undefined ? { emojiUsage: rawData.preferences.constraints.emojiUsage } : {}),
+            ...(rawData.preferences.constraints.ctaStrength ? { ctaStrength: rawData.preferences.constraints.ctaStrength } : {}),
+            ...(rawData.preferences.constraints.formality ? { formality: rawData.preferences.constraints.formality } : {}),
+          },
+        } : {}),
+      };
     }
 
     allowedUpdates.updatedAt = new Date().toISOString();

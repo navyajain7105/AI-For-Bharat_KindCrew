@@ -23,24 +23,14 @@ import {
 
 export default function AnalyticsPage() {
   const router = useRouter();
-  const { isAuthenticated, authReady } = useAuth();
+  const { token, userInfo, authReady } = useAuth();
+  const authenticated = !!token && !!userInfo;
 
   useEffect(() => {
-    if (authReady && !isAuthenticated()) {
+    if (authReady && !authenticated) {
       router.replace("/");
     }
-  }, [authReady, isAuthenticated, router]);
-
-  if (!authReady) {
-    return (
-      <div
-        className="flex items-center justify-center min-h-screen"
-        style={{ backgroundColor: "var(--color-background)" }}
-      >
-        <div style={{ color: "var(--color-text-secondary)" }}>Loading...</div>
-      </div>
-    );
-  }
+  }, [authReady, authenticated, router]);
 
   // sample published posts with metrics
   const initialPosts = [

@@ -13,13 +13,9 @@ const goals = ["growth", "engagement", "authority", "conversion"];
 
 export default function ManualContentCreation() {
   const router = useRouter();
-  const { userInfo, initializeAuth } = useAuth();
+  const { userInfo } = useAuth();
   const { createFromManual: createContentAction, loading, error: storeError, setError } = useContent();
   const [error, setLocalError] = useState("");
-
-  useEffect(() => {
-    initializeAuth();
-  }, [initializeAuth]);
 
   const [formData, setFormData] = useState({
     topic: "",

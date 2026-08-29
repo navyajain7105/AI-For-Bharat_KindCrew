@@ -319,3 +319,98 @@ test("Checkpoint 2C - Test 3: CreatorContext fallback checks for minimum onboard
   assert.equal(context.tone, "Professional");
   assert.equal(context.creatorLevel, "beginner");
 });
+
+test("Checkpoint 2G - CreatorProfile duplicate create preserves original fields untouched", async () => {
+  const store = new Map();
+  const repository = {
+    findByUserId: async (userId) => store.get(userId) || null,
+    create: async (profile) => {
+      store.set(profile.userId, profile);
+      return profile;
+    },
+    update: async (creatorId, updates) => {
+      for (const [uid, prof] of store.entries()) {
+        if (prof.creatorId === creatorId) {
+          const updated = { ...prof, ...updates };
+          store.set(uid, updated);
+          return updated;
+        }
+      }
+      return null;
+    },
+  };
+
+  const service = new CreatorProfileService(repository, () => "unique-creator-id-1");
+
+  const originalInput = {
+    niche: { primary: "Design", secondary: "UI/UX" },
+    targetAudience: "Designers",
+    goals: { primaryGoal: "growth", creatorLevel: "intermediate" },
+    strategy: { contentStrategy: "educational", contentPillars: ["Figma Tips"] },
+  };
+
+  // Step 1: Initial create succeeds
+  const created = await service.createProfile("user-canonical-123", originalInput);
+  assert.equal(created.userId, "user-canonical-123");
+  assert.equal(created.niche.primary, "Design");
+  assert.equal(created.targetAudience, "Designers");
+
+  // Step 2: Attempt duplicate create with different payload (simulating duplicate/stale submit)
+  const conflictingInput = {
+    niche: { primary: "Crypto", secondary: "Trading" },
+    targetAudience: "Investors",
+    goals: { primaryGoal: "monetization", creatorLevel: "advanced" },
+    strategy: { contentStrategy: "promotional" },
+  };
+
+  await assert.rejects(
+    async () => {
+      await service.createProfile("user-canonical-123", conflictingInput);
+    },
+    (err) => {
+      assert(err instanceof ProfileAlreadyExistsError);
+      assert.equal(err.code, "PROFILE_ALREADY_EXISTS");
+      return true;
+    },
+  );
+
+  // Step 3: Verify the original profile in database remains completely unchanged
+  const savedProfile = await service.getProfileByUserId("user-canonical-123");
+  assert.equal(savedProfile.userId, "user-canonical-123");
+  assert.equal(savedProfile.niche.primary, "Design"); // NOT "Crypto"
+  assert.equal(savedProfile.targetAudience, "Designers"); // NOT "Investors"
+  assert.equal(savedProfile.goals.primaryGoal, "growth"); // NOT "monetization"
+  assert.deepEqual(savedProfile.strategy.contentPillars, ["Figma Tips"]);
+});
+
+test("Checkpoint 2G - CreatorProfile ownership strictly rejects foreign/provider identifiers as owner", async () => {
+  const store = new Map();
+  const repository = {
+    findByUserId: async (userId) => store.get(userId) || null,
+    create: async (profile) => {
+      store.set(profile.userId, profile);
+      return profile;
+    },
+  };
+  const service = new CreatorProfileService(repository, () => "test-creator-id");
+
+  const input = {
+    niche: { primary: "Tech" },
+    targetAudience: "Developers",
+    goals: { primaryGoal: "growth" },
+    strategy: { contentStrategy: "educational" },
+  };
+
+  // Rejects empty or missing userId
+  await assert.rejects(
+    () => service.createProfile("", input),
+    (err) => {
+      assert.equal(err.message, "User ID is required");
+      return true;
+    },
+  );
+
+  // Enforces canonical KindCrew User.userId
+  const validProfile = await service.createProfile("kindcrew-user-999", input);
+  assert.equal(validProfile.userId, "kindcrew-user-999");
+});

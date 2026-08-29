@@ -45,6 +45,7 @@ export const createCreatorProfileSlice: StateCreator<
   profileChecked: false,
 
   fetchProfile: async (token: string) => {
+    if (get().profileLoading) return;
     set({ profileLoading: true, profileError: null });
 
     try {
@@ -64,8 +65,6 @@ export const createCreatorProfileSlice: StateCreator<
           : "Failed to fetch profile";
 
       set({
-        creatorProfile: null,
-        hasProfile: false,
         profileChecked: true,
         profileLoading: false,
         profileError: message,

@@ -14,39 +14,29 @@ import {
   FiClock,
   FiTag,
 } from "react-icons/fi";
+import { getDisplayName } from "@/lib/userUtils";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { userInfo, token, authReady, isAuthenticated, logout } = useAuth();
-  const { creatorProfile, fetchProfile, profileLoading, hasProfile } =
-    useAppStore();
+  const { userInfo, token, authReady, logout } = useAuth();
+  const authenticated = !!token && !!userInfo;
+  const creatorProfile = useAppStore((state) => state.creatorProfile);
+  const hasProfile = useAppStore((state) => state.hasProfile);
+  const profileChecked = useAppStore((state) => state.profileChecked);
+  const profileLoading = useAppStore((state) => state.profileLoading);
+  const fetchProfile = useAppStore((state) => state.fetchProfile);
 
   useEffect(() => {
-    if (authReady && !isAuthenticated()) {
+    if (authReady && !authenticated) {
       router.replace("/");
     }
-  }, [authReady, isAuthenticated, router]);
+  }, [authReady, authenticated, router]);
 
   useEffect(() => {
-    if (token && isAuthenticated() && authReady) {
+    if (token && authenticated && authReady && !profileChecked && !profileLoading) {
       fetchProfile(token);
     }
-  }, [token, isAuthenticated, authReady, fetchProfile]);
-
-  if (!authReady) {
-    return (
-      <div
-        className="flex items-center justify-center min-h-screen"
-        style={{ backgroundColor: "var(--color-background)" }}
-      >
-        <div style={{ color: "var(--color-text-secondary)" }}>Loading...</div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated()) {
-    return null;
-  }
+  }, [token, authenticated, authReady, profileChecked, profileLoading, fetchProfile]);
 
   const handleLogout = () => {
     logout();
@@ -90,7 +80,7 @@ export default function ProfilePage() {
             {userInfo?.profileImage ? (
               <img
                 src={userInfo.profileImage}
-                alt={userInfo.name}
+                alt={getDisplayName(userInfo)}
                 className="w-24 h-24 rounded-full ring-2 ring-gray-700"
               />
             ) : (
@@ -99,15 +89,13 @@ export default function ProfilePage() {
                 style={{ backgroundColor: "var(--color-surface-hover)" }}
               >
                 <span style={{ color: "var(--color-text)" }}>
-                  {(userInfo?.givenName || userInfo?.name)?.charAt(0) || "U"}
+                  {getDisplayName(userInfo).charAt(0) || "U"}
                 </span>
               </div>
             )}
             <div className="flex-1">
               <h2 className="text-2xl font-semibold">
-                {userInfo?.givenName && userInfo?.familyName
-                  ? `${userInfo.givenName} ${userInfo.familyName}`
-                  : userInfo?.name || "User"}
+                {getDisplayName(userInfo)}
               </h2>
               <p className="text-gray-400 mt-1">
                 {userInfo?.email || "No email"}

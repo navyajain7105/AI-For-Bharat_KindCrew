@@ -65,7 +65,8 @@ export default function ContentDetailPage() {
   const router = useRouter();
   const params = useParams();
   const contentId = params?.contentId as string;
-  const { isAuthenticated, authReady, userInfo, token } = useAuth();
+  const { authReady, userInfo, token } = useAuth();
+  const authenticated = !!token && !!userInfo;
 
   const [content, setContent] = useState<ContentItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,16 +117,16 @@ export default function ContentDetailPage() {
   };
 
   useEffect(() => {
-    if (authReady && !isAuthenticated()) {
+    if (authReady && !authenticated) {
       router.replace("/");
     }
-  }, [authReady, isAuthenticated, router]);
+  }, [authReady, authenticated, router]);
 
   useEffect(() => {
-    if (userInfo?.userId && token && contentId) {
+    if (authReady && authenticated && userInfo?.userId && token && contentId) {
       loadContent();
     }
-  }, [userInfo?.userId, token, contentId]);
+  }, [authReady, authenticated, userInfo?.userId, token, contentId]);
 
   useEffect(() => {
     if (content && content.platformVariants) {

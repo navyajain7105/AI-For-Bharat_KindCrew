@@ -166,7 +166,8 @@ function getDraftText(draft: unknown) {
 export default function PlanningPage() {
   const router = useRouter();
   const toast = useToast();
-  const { token, isAuthenticated, userInfo } = useAuth();
+  const { token, userInfo, authReady } = useAuth();
+  const authenticated = !!token && !!userInfo;
   const {
     schedules,
     loading,
@@ -203,16 +204,16 @@ export default function PlanningPage() {
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    if (token && isAuthenticated()) {
+    if (authReady && authenticated && token) {
       fetchSchedules(token);
     }
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authReady, authenticated, token, fetchSchedules]);
 
   useEffect(() => {
-    if (token && isAuthenticated() && userInfo?.userId) {
+    if (authReady && authenticated && token && userInfo?.userId) {
       fetchUserContent(userInfo.userId);
     }
-  }, [token, userInfo?.userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authReady, authenticated, token, userInfo?.userId, fetchUserContent]);
 
   const schedulesByDay = useMemo(() => {
     const map = new Map<string, ScheduleRecord[]>();

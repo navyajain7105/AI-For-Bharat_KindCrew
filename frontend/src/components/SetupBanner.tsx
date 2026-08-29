@@ -9,7 +9,8 @@ type SetupBannerProps = {
 };
 
 export default function SetupBanner({ onDismiss }: SetupBannerProps) {
-  const { creatorProfile, hasProfile } = useAppStore();
+  const creatorProfile = useAppStore((state) => state.creatorProfile);
+  const hasProfile = useAppStore((state) => state.hasProfile);
 
   // Derived Checklist values
   const hasNiche = !!creatorProfile?.niche?.primary;

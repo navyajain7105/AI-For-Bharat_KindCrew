@@ -13,8 +13,10 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiX,
+  FiSettings,
 } from "react-icons/fi";
 import { FaHeart } from "react-icons/fa";
+import { getDisplayName } from "@/lib/userUtils";
 
 type SidebarProps = {
   onLogout: () => void;
@@ -38,6 +40,7 @@ export default function Sidebar({
     { name: "Content", href: "/content", icon: FiEdit },
     { name: "Planning", href: "/dashboard/planning", icon: FiCalendar },
     { name: "Analytics", href: "/analytics", icon: FiBarChart2 },
+    { name: "Settings", href: "/settings", icon: FiSettings },
   ];
 
   const isActive = (href: string) => pathname === href;
@@ -46,7 +49,7 @@ export default function Sidebar({
 
   return (
     <div
-      className={`${collapsed ? "w-20" : "w-64"} h-full min-h-screen flex flex-col ${onCloseDrawer ? "border-r-0" : "border-r"} lg:border-r transition-all duration-300`}
+      className={`${collapsed ? "w-20" : "w-64"} h-full min-h-screen flex flex-col ${onCloseDrawer ? "border-r-0" : "border-r"} lg:border-r transition-[width] duration-300`}
       style={{
         backgroundColor: "var(--color-surface)",
         borderRightColor: "var(--color-border)",
@@ -138,7 +141,7 @@ export default function Sidebar({
             {userInfo?.profileImage ? (
               <img
                 src={userInfo.profileImage}
-                alt={userInfo.name}
+                alt={getDisplayName(userInfo)}
                 className="w-10 h-10 rounded-full "
               />
             ) : (
@@ -147,7 +150,7 @@ export default function Sidebar({
                   style={{ color: "var(--color-text)" }}
                   className="uppercase"
                 >
-                  {userInfo?.name?.charAt(0) || "U"}
+                  {getDisplayName(userInfo).charAt(0) || "U"}
                 </span>
               </div>
             )}
@@ -156,9 +159,7 @@ export default function Sidebar({
                 className="text-sm font-medium truncate"
                 style={{ color: "var(--color-text)" }}
               >
-                {userInfo?.givenName && userInfo?.familyName
-                  ? `${userInfo.givenName} ${userInfo.familyName}`
-                  : userInfo?.name || "User"}
+                {getDisplayName(userInfo)}
               </p>
               <p
                 className="text-xs truncate"
@@ -201,7 +202,7 @@ export default function Sidebar({
           {userInfo?.profileImage ? (
             <img
               src={userInfo.profileImage}
-              alt={userInfo.name}
+              alt={getDisplayName(userInfo)}
               className="w-10 h-10 rounded-full"
             />
           ) : (
@@ -210,7 +211,7 @@ export default function Sidebar({
               style={{ backgroundColor: "var(--color-surface-hover)" }}
             >
               <span style={{ color: "var(--color-text)" }}>
-                {userInfo?.name?.charAt(0) || "U"}
+                {getDisplayName(userInfo).charAt(0) || "U"}
               </span>
             </div>
           )}

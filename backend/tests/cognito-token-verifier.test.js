@@ -9,6 +9,7 @@ import {
 } from "../src/modules/auth/cognitoTokenVerifier.js";
 import {
   IdentityLinkingRequiredError,
+  LoginMethodConflictError,
   UsersService,
 } from "../src/modules/users/users.service.js";
 
@@ -152,6 +153,7 @@ test("creates normalized identity only from verified claims", () => {
     {
       provider: "cognito",
       providerUserId: "cognito-sub-1",
+      cognitoSub: "cognito-sub-1",
       tokenType: "access",
       email: "person@example.com",
       emailVerified: true,
@@ -163,7 +165,33 @@ test("creates normalized identity only from verified claims", () => {
     {
       provider: "cognito",
       providerUserId: "cognito-sub-2",
+      cognitoSub: "cognito-sub-2",
       tokenType: "access",
+    },
+  );
+
+  // Google identity extraction test (extracts Google userId as providerUserId)
+  assert.deepEqual(
+    getVerifiedCognitoIdentity({
+      sub: "native-or-federated-sub-123",
+      token_use: "access",
+      email: "googleuser@example.com",
+      email_verified: true,
+      identities: [
+        {
+          userId: "google-user-id-999",
+          providerName: "Google",
+          providerType: "Google",
+        },
+      ],
+    }),
+    {
+      provider: "google",
+      providerUserId: "google-user-id-999",
+      cognitoSub: "native-or-federated-sub-123",
+      tokenType: "access",
+      email: "googleuser@example.com",
+      emailVerified: true,
     },
   );
 });
@@ -187,6 +215,7 @@ test("middleware attaches req.auth only after verifier success", async () => {
   assert.deepEqual(req.auth, {
     provider: "cognito",
     providerUserId: "cognito-sub-1",
+    cognitoSub: "cognito-sub-1",
     tokenType: "access",
     email: "person@example.com",
     emailVerified: true,
@@ -262,6 +291,9 @@ test("resolves a verified identity by provider identity and rejects same-email c
       email: "person@example.com",
       emailVerified: true,
     }),
-    IdentityLinkingRequiredError,
+    // resolveAuthenticatedUser now throws LoginMethodConflictError for a
+    // genuine different-provider conflict during normal login.  The old
+    // IdentityLinkingRequiredError is reserved for the explicit linking flow.
+    LoginMethodConflictError,
   );
 });

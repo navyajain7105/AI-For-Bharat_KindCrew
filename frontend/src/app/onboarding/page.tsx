@@ -16,18 +16,17 @@ function OnboardingPageContent() {
   const searchParams = useSearchParams();
   const isEditMode = searchParams.get("edit") === "true";
 
-  const { token, isAuthenticated, authReady, initializeAuth } = useAuth();
-  const {
-    createProfile,
-    updateProfile,
-    completeOnboarding,
-    profileLoading,
-    hasProfile,
-    profileChecked,
-    fetchProfile,
-    creatorProfile,
-    skipOnboarding, // Added in Zustand slice
-  } = useAppStore();
+  const { token, userInfo, authReady } = useAuth();
+  const authenticated = !!token && !!userInfo;
+  const createProfile = useAppStore((state) => state.createProfile);
+  const updateProfile = useAppStore((state) => state.updateProfile);
+  const completeOnboarding = useAppStore((state) => state.completeOnboarding);
+  const profileLoading = useAppStore((state) => state.profileLoading);
+  const hasProfile = useAppStore((state) => state.hasProfile);
+  const profileChecked = useAppStore((state) => state.profileChecked);
+  const fetchProfile = useAppStore((state) => state.fetchProfile);
+  const creatorProfile = useAppStore((state) => state.creatorProfile);
+  const skipOnboarding = useAppStore((state) => state.skipOnboarding);
 
   const [currentStep, setCurrentStep] = useState(1);
 
@@ -66,14 +65,10 @@ function OnboardingPageContent() {
   const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => {
-    initializeAuth();
-  }, [initializeAuth]);
-
-  useEffect(() => {
-    if (authReady && token && isAuthenticated() && !profileChecked) {
+    if (authReady && token && authenticated && !profileChecked && !profileLoading) {
       fetchProfile(token);
     }
-  }, [authReady, token, isAuthenticated, profileChecked, fetchProfile]);
+  }, [authReady, token, authenticated, profileChecked, profileLoading, fetchProfile]);
 
   // Load existing profile details if editing
   useEffect(() => {
@@ -152,10 +147,10 @@ function OnboardingPageContent() {
   }, [hasProfile, creatorProfile, profileLoaded]);
 
   useEffect(() => {
-    if (authReady && !isAuthenticated()) {
+    if (authReady && !authenticated) {
       router.replace("/");
     }
-  }, [authReady, isAuthenticated, router]);
+  }, [authReady, authenticated, router]);
 
   useEffect(() => {
     // Only auto-redirect if profile exists, not in edit mode, AND onboarding is completed
@@ -196,6 +191,7 @@ function OnboardingPageContent() {
   };
 
   const handleNext = () => {
+    if (profileLoading) return;
     if (currentStep === 1) {
       if (validateStep1()) {
         setCurrentStep(2);
@@ -204,12 +200,14 @@ function OnboardingPageContent() {
   };
 
   const handleBack = () => {
+    if (profileLoading) return;
     if (currentStep === 2) {
       setCurrentStep(1);
     }
   };
 
   const handleSaveAndContinue = async () => {
+    if (profileLoading) return;
     if (currentStep === 1 && !validateStep1()) return;
     if (!token) return;
 
@@ -246,6 +244,7 @@ function OnboardingPageContent() {
   };
 
   const handleSkipAction = async () => {
+    if (profileLoading) return;
     if (!token) return;
     try {
       // Save skip preference in User settings via API
@@ -319,8 +318,9 @@ function OnboardingPageContent() {
         <div className="flex justify-between items-center border-t border-slate-800 pt-6">
           <button
             type="button"
+            disabled={profileLoading}
             onClick={handleSkipAction}
-            className="text-sm font-semibold hover:text-white transition-colors"
+            className="text-sm font-semibold hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ color: "var(--color-text-secondary)" }}
           >
             Skip for now
@@ -330,8 +330,9 @@ function OnboardingPageContent() {
             {currentStep === 2 && (
               <button
                 type="button"
+                disabled={profileLoading}
                 onClick={handleBack}
-                className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-700 text-white hover:bg-slate-900 transition-colors"
+                className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-slate-700 text-white hover:bg-slate-900 transition-colors disabled:opacity-50"
               >
                 Back
               </button>
@@ -340,18 +341,20 @@ function OnboardingPageContent() {
             {currentStep === 1 ? (
               <button
                 type="button"
+                disabled={profileLoading}
                 onClick={handleNext}
-                className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-white text-slate-950 hover:bg-slate-200 transition-colors"
+                className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-white text-slate-950 hover:bg-slate-200 transition-colors disabled:opacity-50"
               >
                 Continue
               </button>
             ) : (
               <button
                 type="button"
+                disabled={profileLoading}
                 onClick={handleSaveAndContinue}
-                className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-white text-slate-950 hover:bg-slate-200 transition-colors animate-pulse"
+                className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-white text-slate-950 hover:bg-slate-200 transition-colors disabled:opacity-50"
               >
-                Complete Setup
+                {profileLoading ? "Saving..." : "Complete Setup"}
               </button>
             )}
           </div>

@@ -1,9 +1,6 @@
 import { StateCreator } from "zustand";
 import { buildApiUrl, API_URL } from "@/lib/constants";
-import {
-  clearAccessToken,
-  setAccessToken,
-} from "@/lib/authToken";
+import { clearAccessToken, setAccessToken } from "@/lib/authToken";
 import { toast } from "sonner";
 
 type UserInfo = {
@@ -38,21 +35,20 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (
   loading: false,
   error: null,
 
-  clearAuth: () =>
-    (() => {
-      clearAccessToken();
-      set({
-        token: null,
-        userInfo: null,
-        authReady: true,
-        loading: false,
-        error: null,
-      });
-    })(),
+  clearAuth: () => {
+    clearAccessToken();
+    set({
+      token: null,
+      userInfo: null,
+      authReady: true,
+      loading: false,
+      error: null,
+    });
+  },
 
   initializeAuth: async () => {
-    const currentState = get();
-    if (currentState.authReady) {
+    // Idempotent guard: prevent multiple parallel requests (e.g. React Strict Mode)
+    if (get().authReady || get().loading) {
       return;
     }
 
@@ -62,9 +58,15 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (
       const response = await fetch(buildApiUrl("/api/auth/session"), {
         credentials: "include",
       });
+
       if (!response.ok) {
+        const wasSignedIn = !!get().userInfo;
         get().clearAuth();
-        if (typeof window !== "undefined" && window.location.pathname !== "/") {
+        if (
+          typeof window !== "undefined" &&
+          window.location.pathname !== "/" &&
+          wasSignedIn
+        ) {
           toast.error("Your session has expired. Please sign in again.");
         }
         return;
@@ -75,12 +77,15 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (
       };
       const accessToken = data.data?.accessToken;
       const user = data.data?.user;
+
       if (!accessToken || !user) {
         get().clearAuth();
         return;
       }
 
       setAccessToken(accessToken);
+
+      // Single atomic state update to transition authReady to true
       set({
         token: accessToken,
         userInfo: user,
@@ -94,37 +99,27 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (
           ? (error as { message?: string }).message ||
             "Failed to validate session"
           : "Failed to validate session";
-      set({
-        token: null,
-        userInfo: null,
-        authReady: true,
-        loading: false,
-        error: message,
-      });
-      clearAccessToken();
+      get().clearAuth();
+      set({ error: message });
     }
   },
 
   logout: async () => {
     try {
-      // Clear Zustand persisted state first
       get().clearAuth();
-
-      // Clear all localStorage (in case of any residual data)
-      localStorage.clear();
-
-      // Call backend logout to destroy session and redirect to Cognito logout
-      // This will clear Cognito session cookies and redirect back to login
-      const logoutUrl = API_URL
-        ? `${API_URL.replace(/\/$/, "")}/api/auth/logout`
-        : "/api/auth/logout";
-      window.location.href = logoutUrl;
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = buildApiUrl("/api/auth/logout");
+      }
     } catch (error) {
       console.error("Logout error:", error);
-      // Fallback: clear local state and redirect manually
       get().clearAuth();
-      localStorage.clear();
-      window.location.href = "/";
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/";
+      }
     }
   },
 
