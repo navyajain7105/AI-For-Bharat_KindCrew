@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useAppStore } from "@/store/useAppStore";
 
 export function useAuth() {
@@ -8,8 +9,12 @@ export function useAuth() {
   const error = useAppStore((state) => state.error);
   const initializeAuth = useAppStore((state) => state.initializeAuth);
   const logout = useAppStore((state) => state.logout);
-  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
-  const setAuth = useAppStore((state) => state.setAuth);
+
+  // Stable callback that only updates reference when token or userInfo changes.
+  const isAuthenticated = useCallback(
+    () => !!token && !!userInfo,
+    [token, userInfo],
+  );
 
   return {
     userInfo,
@@ -20,6 +25,5 @@ export function useAuth() {
     initializeAuth,
     logout,
     isAuthenticated,
-    setAuth,
   };
 }

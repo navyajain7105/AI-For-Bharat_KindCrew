@@ -1,6 +1,7 @@
 import { StateCreator } from "zustand";
-import { extractUserFromToken } from "@/lib/jwtDecode";
-import { API_URL } from "@/lib/constants";
+import { buildApiUrl, API_URL } from "@/lib/constants";
+import { clearAccessToken, setAccessToken } from "@/lib/authToken";
+import { toast } from "sonner";
 
 type UserInfo = {
   userId: string;
@@ -18,7 +19,6 @@ export type AuthSlice = {
   authReady: boolean;
   loading: boolean;
   error: string | null;
-  setAuth: (payload: { token: string; user: UserInfo }) => void;
   clearAuth: () => void;
   initializeAuth: () => Promise<void>;
   logout: () => Promise<void>;
@@ -35,86 +35,91 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (
   loading: false,
   error: null,
 
-  setAuth: ({ token, user }) =>
-    set({
-      token,
-      userInfo: user,
-      authReady: true,
-      loading: false,
-      error: null,
-    }),
-
-  clearAuth: () =>
+  clearAuth: () => {
+    clearAccessToken();
     set({
       token: null,
       userInfo: null,
       authReady: true,
       loading: false,
       error: null,
-    }),
+    });
+  },
 
   initializeAuth: async () => {
-    const currentState = get();
-    const token = currentState.token;
-
-    // Skip if already authenticated with valid user info
-    if (currentState.authReady && currentState.userInfo && token) {
-      return;
-    }
-
-    if (!token) {
-      set({ authReady: true, userInfo: null, loading: false, error: null });
+    // Idempotent guard: prevent multiple parallel requests (e.g. React Strict Mode)
+    if (get().authReady || get().loading) {
       return;
     }
 
     set({ loading: true, error: null });
 
     try {
-      // Decode JWT to extract user info (no API call needed)
-      const user = extractUserFromToken(token);
+      const response = await fetch(buildApiUrl("/api/auth/session"), {
+        credentials: "include",
+      });
 
-      if (!user) {
+      if (!response.ok) {
+        const wasSignedIn = !!get().userInfo;
+        get().clearAuth();
+        if (
+          typeof window !== "undefined" &&
+          window.location.pathname !== "/" &&
+          wasSignedIn
+        ) {
+          toast.error("Your session has expired. Please sign in again.");
+        }
+        return;
+      }
+
+      const data = (await response.json()) as {
+        data?: { accessToken?: string; user?: UserInfo };
+      };
+      const accessToken = data.data?.accessToken;
+      const user = data.data?.user;
+
+      if (!accessToken || !user) {
         get().clearAuth();
         return;
       }
 
-      set({ userInfo: user, authReady: true, loading: false, error: null });
+      setAccessToken(accessToken);
+
+      // Single atomic state update to transition authReady to true
+      set({
+        token: accessToken,
+        userInfo: user,
+        authReady: true,
+        loading: false,
+        error: null,
+      });
     } catch (error: unknown) {
       const message =
         typeof error === "object" && error !== null && "message" in error
           ? (error as { message?: string }).message ||
             "Failed to validate session"
           : "Failed to validate session";
-      set({
-        token: null,
-        userInfo: null,
-        authReady: true,
-        loading: false,
-        error: message,
-      });
+      get().clearAuth();
+      set({ error: message });
     }
   },
 
   logout: async () => {
     try {
-      // Clear Zustand persisted state first
       get().clearAuth();
-
-      // Clear all localStorage (in case of any residual data)
-      localStorage.clear();
-
-      // Call backend logout to destroy session and redirect to Cognito logout
-      // This will clear Cognito session cookies and redirect back to login
-      const logoutUrl = API_URL
-        ? `${API_URL.replace(/\/$/, "")}/api/auth/logout`
-        : "/api/auth/logout";
-      window.location.href = logoutUrl;
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = buildApiUrl("/api/auth/logout");
+      }
     } catch (error) {
       console.error("Logout error:", error);
-      // Fallback: clear local state and redirect manually
       get().clearAuth();
-      localStorage.clear();
-      window.location.href = "/";
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/";
+      }
     }
   },
 

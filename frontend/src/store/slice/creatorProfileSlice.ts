@@ -6,6 +6,7 @@ import {
   createCreatorProfile,
   updateCreatorProfile as updateProfileAPI,
   completeOnboarding as completeOnboardingAPI,
+  skipOnboarding as skipOnboardingAPI,
 } from "@/lib/api/creatorProfile";
 
 export type CreatorProfileSlice = {
@@ -27,6 +28,7 @@ export type CreatorProfileSlice = {
     data: Partial<CreatorProfileData>,
   ) => Promise<CreatorProfile>;
   completeOnboarding: (token: string, creatorId: string) => Promise<void>;
+  skipOnboarding: (token: string) => Promise<void>;
   clearProfile: () => void;
 };
 
@@ -43,6 +45,7 @@ export const createCreatorProfileSlice: StateCreator<
   profileChecked: false,
 
   fetchProfile: async (token: string) => {
+    if (get().profileLoading) return;
     set({ profileLoading: true, profileError: null });
 
     try {
@@ -62,8 +65,6 @@ export const createCreatorProfileSlice: StateCreator<
           : "Failed to fetch profile";
 
       set({
-        creatorProfile: null,
-        hasProfile: false,
         profileChecked: true,
         profileLoading: false,
         profileError: message,
@@ -148,6 +149,21 @@ export const createCreatorProfileSlice: StateCreator<
           ? (error as { message?: string }).message ||
             "Failed to complete onboarding"
           : "Failed to complete onboarding";
+
+      set({ profileError: message });
+      throw error;
+    }
+  },
+
+  skipOnboarding: async (token: string) => {
+    try {
+      await skipOnboardingAPI(token);
+    } catch (error: unknown) {
+      const message =
+        typeof error === "object" && error !== null && "message" in error
+          ? (error as { message?: string }).message ||
+            "Failed to skip onboarding"
+          : "Failed to skip onboarding";
 
       set({ profileError: message });
       throw error;

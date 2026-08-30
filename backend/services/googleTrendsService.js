@@ -1,18 +1,69 @@
 import googleTrends from "google-trends-api";
 
+const REQUEST_TIMEOUT_MS = 10000;
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const trendsCache = new Map();
+
+function withTimeout(promise, timeoutMs = REQUEST_TIMEOUT_MS) {
+  let timeoutId;
+
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error("Google Trends request timed out")),
+      timeoutMs,
+    );
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
+
+function getStartTime(timeframe) {
+  const match = /^now (\d+)-(d|m|y)$/.exec(timeframe || "");
+  if (!match) return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const amount = Number(match[1]);
+  const unitInDays = { d: 1, m: 30, y: 365 }[match[2]];
+  return new Date(Date.now() - amount * unitInDays * 24 * 60 * 60 * 1000);
+}
+
+function getCached(key) {
+  const cached = trendsCache.get(key);
+  if (!cached || cached.expiresAt <= Date.now()) {
+    trendsCache.delete(key);
+    return null;
+  }
+
+  return cached.value;
+}
+
+function setCached(key, value) {
+  trendsCache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
 /**
  * Get trending topics and interest data
  */
 async function getTrendingTopics(keyword, timeframe = "now 1-m") {
-  try {
-    const results = await googleTrends.interestByTime({
-      keyword: keyword,
-      startTime: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
-      granularTimeUnit: "day",
-    });
+  const normalizedKeyword = String(keyword || "").trim();
+  if (!normalizedKeyword) return [];
 
-    const parsed = JSON.parse(results);
-    return parsed.default.timelineData || [];
+  const cacheKey = `interest:${normalizedKeyword}:${timeframe}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const results = await withTimeout(googleTrends.interestOverTime({
+      keyword: normalizedKeyword,
+      startTime: getStartTime(timeframe),
+      endTime: new Date(),
+      granularTimeResolution: true,
+    }));
+
+    const timelineData = JSON.parse(results)?.default?.timelineData || [];
+    setCached(cacheKey, timelineData);
+    return timelineData;
   } catch (error) {
     console.error("Google Trends error:", error.message);
     return [];
@@ -23,13 +74,21 @@ async function getTrendingTopics(keyword, timeframe = "now 1-m") {
  * Get related queries for a keyword
  */
 async function getRelatedQueries(keyword) {
-  try {
-    const results = await googleTrends.relatedQueries({
-      keyword: keyword,
-    });
+  const normalizedKeyword = String(keyword || "").trim();
+  if (!normalizedKeyword) return [];
 
-    const parsed = JSON.parse(results);
-    return parsed.default.rankedList || [];
+  const cacheKey = `related:${normalizedKeyword}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const results = await withTimeout(
+      googleTrends.relatedQueries({ keyword: normalizedKeyword }),
+    );
+
+    const rankedList = JSON.parse(results)?.default?.rankedList || [];
+    setCached(cacheKey, rankedList);
+    return rankedList;
   } catch (error) {
     console.error("Related queries error:", error.message);
     return [];

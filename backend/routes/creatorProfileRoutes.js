@@ -1,89 +1,57 @@
-/**
- * Creator Profile Routes
- * API endpoints for creator profile operations
- */
-
 import express from "express";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 import {
-  createProfile,
   getProfile,
-  getMyProfile,
+  createProfile,
   updateProfile,
+  deleteProfile,
+} from "../src/modules/creator-profile/creatorProfile.controller.js";
+import {
   addCompetitor,
   removeCompetitor,
   updatePlatforms,
   completeOnboarding,
-  deleteProfile,
-  getProfilesByStatus,
-  getProfilesByNiche,
 } from "../controllers/creatorProfileController.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 /**
- * Public routes (no authentication required)
+ * Legacy API routes mapped to secure modular controller actions.
+ * Derives authenticated context strictly from req.userId, preventing IDOR.
  */
 
-// Get profile by ID - public access
-router.get("/creator-profiles/:creatorId", getProfile);
-
-// Get profiles by status - public access
-router.get("/creator-profiles/status/:status", getProfilesByStatus);
-
-// Get profiles by niche - public access
-router.get("/creator-profiles/niche/:primaryNiche", getProfilesByNiche);
-
-/**
- * Protected routes (authentication required)
- */
-
-// Create new creator profile - requires auth
+// Create profile
 router.post("/creator-profiles", authMiddleware, createProfile);
 
-// Get authenticated user's profile
-router.get("/creator-profiles/me/profile", authMiddleware, getMyProfile);
+// Get profile
+router.get("/creator-profiles/me/profile", authMiddleware, getProfile);
 
-// Update profile - requires auth
+// Update profile (ignores creatorId parameter and updates req.userId profile)
 router.put("/creator-profiles/:creatorId", authMiddleware, updateProfile);
 
-// Add competitor - requires auth
+// Delete profile
+router.delete("/creator-profiles/:creatorId", authMiddleware, deleteProfile);
+
+// Competitor and Platform updates (sub-resource routes)
 router.post(
   "/creator-profiles/:creatorId/competitors",
   authMiddleware,
   addCompetitor,
 );
-
-// Remove competitor - requires auth
 router.delete(
   "/creator-profiles/:creatorId/competitors/:competitorId",
   authMiddleware,
   removeCompetitor,
 );
-
-// Update platforms - requires auth
 router.patch(
   "/creator-profiles/:creatorId/platforms",
   authMiddleware,
   updatePlatforms,
 );
-
-// Complete onboarding - requires auth
 router.patch(
   "/creator-profiles/:creatorId/complete-onboarding",
   authMiddleware,
   completeOnboarding,
 );
-
-// Delete profile - requires auth
-router.delete("/creator-profiles/:creatorId", authMiddleware, deleteProfile);
-
-/**
- * Export router for use in app.js
- * Usage in app.js:
- *
- * import creatorProfileRoutes from './routes/creatorProfileRoutes.js';
- * app.use('/api', creatorProfileRoutes);
- */
 
 export default router;

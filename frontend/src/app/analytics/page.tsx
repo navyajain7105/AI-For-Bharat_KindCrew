@@ -11,6 +11,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  AreaChart,
+  Area,
 } from "recharts";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import {
@@ -19,209 +21,481 @@ import {
   FiHeart,
   FiBarChart2,
   FiZap,
+  FiArrowUpRight,
+  FiCheckCircle,
+  FiFilter,
+  FiShare2,
+  FiLayers,
+  FiRefreshCw,
 } from "react-icons/fi";
+import { Badge } from "@/components/ui/Badge";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
+
+interface PostMetric {
+  id: string;
+  title: string;
+  platform: string;
+  pillar: string;
+  views: number;
+  likes: number;
+  comments: number;
+  publishedAt: string;
+}
 
 export default function AnalyticsPage() {
   const router = useRouter();
-  const { isAuthenticated, authReady } = useAuth();
+  const { token, userInfo, authReady } = useAuth();
+  const authenticated = !!token && !!userInfo;
 
   useEffect(() => {
-    if (authReady && !isAuthenticated()) {
+    if (authReady && !authenticated) {
       router.replace("/");
     }
-  }, [authReady, isAuthenticated, router]);
+  }, [authReady, authenticated, router]);
 
-  if (!authReady) {
-    return (
-      <div
-        className="flex items-center justify-center min-h-screen"
-        style={{ backgroundColor: "var(--color-background)" }}
-      >
-        <div style={{ color: "var(--color-text-secondary)" }}>Loading...</div>
-      </div>
-    );
-  }
-
-  // sample published posts with metrics
-  const initialPosts = [
+  const [posts, setPosts] = useState<PostMetric[]>([
     {
       id: "1",
-      title: "Your SaaS is Leaking Money",
-      platform: "Twitter",
-      views: 5430,
-      likes: 1200,
+      title: "5 AI Automations That Save Founders 15 Hours/Week",
+      platform: "LinkedIn",
+      pillar: "AI Workflows",
+      views: 6420,
+      likes: 1350,
+      comments: 184,
+      publishedAt: "3 days ago",
     },
     {
       id: "2",
-      title: "The 'Lazy' Way to Build a Startup",
-      platform: "LinkedIn",
-      views: 1205,
-      likes: 234,
+      title: "The Contrarian Guide to Building SaaS in 2026",
+      platform: "Twitter",
+      pillar: "Startup Growth",
+      views: 4890,
+      likes: 890,
+      comments: 92,
+      publishedAt: "5 days ago",
     },
     {
       id: "3",
-      title: "From 0 to 10k Followers",
-      platform: "Instagram",
-      views: 0,
-      likes: 0,
+      title: "Why Most Creators Fail at Consistency (And the 3-Step Fix)",
+      platform: "LinkedIn",
+      pillar: "Creator Mindset",
+      views: 3120,
+      likes: 540,
+      comments: 67,
+      publishedAt: "1 week ago",
     },
-  ];
-  const [posts, setPosts] = useState(initialPosts);
+    {
+      id: "4",
+      title: "From 0 to 10k MRR: Architecture Teardown",
+      platform: "Medium",
+      pillar: "Tech Teardowns",
+      views: 2450,
+      likes: 310,
+      comments: 45,
+      publishedAt: "2 weeks ago",
+    },
+  ]);
 
-  const updateMetrics = (id: string, views: number, likes: number) => {
+  const [selectedPostId, setSelectedPostId] = useState<string>("1");
+  const [activeRange, setActiveRange] = useState<"7d" | "30d" | "all">("30d");
+
+  const updateMetrics = (id: string, views: number, likes: number, comments: number) => {
     setPosts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, views, likes } : p)),
+      prev.map((p) => (p.id === id ? { ...p, views, likes, comments } : p))
     );
   };
 
-  const [selectedForSuggestions, setSelectedForSuggestions] = useState<
-    string | null
-  >(null);
+  const selectedPost = posts.find((p) => p.id === selectedPostId) || posts[0];
+
+  // Derived KPI computations
+  const totalViews = posts.reduce((acc, p) => acc + (p.views || 0), 0);
+  const totalLikes = posts.reduce((acc, p) => acc + (p.likes || 0), 0);
+  const totalComments = posts.reduce((acc, p) => acc + (p.comments || 0), 0);
+  const avgEngagementRate =
+    totalViews > 0
+      ? (((totalLikes + totalComments) / totalViews) * 100).toFixed(1)
+      : "0.0";
+
+  // Chart data formatting
+  const chartData = posts.map((p) => ({
+    name: p.title.length > 22 ? p.title.slice(0, 22) + "..." : p.title,
+    views: p.views,
+    engagement: p.likes + p.comments,
+    platform: p.platform,
+  }));
+
+  // Diagnostic advice generator based on selected post metrics
+  const getDiagnosticInsights = (post: PostMetric) => {
+    const engRate =
+      post.views > 0
+        ? (((post.likes + post.comments) / post.views) * 100).toFixed(1)
+        : "0.0";
+
+    const isHighReach = post.views > 4000;
+    const isHighEng = parseFloat(engRate) > 15;
+
+    return {
+      engRate,
+      hookVerdict: isHighReach
+        ? "Exceptional Hook Retention (Top 10% of niche)"
+        : "Moderate Hook Velocity — test contrasting opening statements",
+      repurposeSuggestion:
+        post.platform === "LinkedIn"
+          ? "High comment velocity indicates strong candidate for a Twitter / X thread and newsletter deep dive."
+          : "Format suited for expanding into a step-by-step visual carousel.",
+      cadenceTip: "Publishing between 8:30 AM - 10:00 AM in your target timezone generated peak impressions.",
+    };
+  };
+
+  const currentInsights = getDiagnosticInsights(selectedPost);
 
   return (
     <AuthenticatedLayout>
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-3 mb-6">
-          <FiTrendingUp className="text-gray-400" size={32} />
+      <div className="max-w-6xl mx-auto space-y-8 pb-12">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold">
-              Analysis & Feedback
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">
+                Stage 4 — Analytics & Growth Engine
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+              Content Performance & Insights
             </h1>
-            <p className="text-gray-400 mt-1">
-              Learn what works and improve future content.
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1">
+              Measure engagement velocity, calibrate high-converting content pillars, and diagnose what resonates.
             </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-900 border border-zinc-800 self-start sm:self-auto">
+            {(["7d", "30d", "all"] as const).map((range) => (
+              <button
+                key={range}
+                type="button"
+                onClick={() => setActiveRange(range)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  activeRange === range
+                    ? "bg-zinc-800 text-zinc-100 shadow-sm border border-zinc-700/60"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {range === "7d" ? "7 Days" : range === "30d" ? "30 Days" : "All Time"}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Performance overview and suggestions side */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2 bg-surface rounded-xl p-6 shadow-lg border border-border">
-            <div className="flex items-center gap-2 mb-4">
-              <FiBarChart2 className="text-gray-400" size={20} />
-              <h2 className="text-xl font-semibold">Performance Overview</h2>
+        {/* 4 Top KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Impressions */}
+          <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-400">
+                Total Impressions
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-amber-400">
+                <FiEye className="w-4 h-4" />
+              </div>
             </div>
-            {/* dark chart container */}
-            <div className="w-full h-40 bg-background rounded-xl p-2 border border-border">
+            <div>
+              <p className="text-2xl font-bold tracking-tight text-zinc-100">
+                {totalViews.toLocaleString()}
+              </p>
+              <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 mt-1">
+                <FiArrowUpRight className="w-3.5 h-3.5" />
+                <span>+16.4% vs last period</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Total Interactions */}
+          <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-400">
+                Total Interactions
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-amber-400">
+                <FiHeart className="w-4 h-4" />
+              </div>
+            </div>
+            <div>
+              <p className="text-2xl font-bold tracking-tight text-zinc-100">
+                {(totalLikes + totalComments).toLocaleString()}
+              </p>
+              <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 mt-1">
+                <FiArrowUpRight className="w-3.5 h-3.5" />
+                <span>+9.8% engagement</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Average Engagement Rate */}
+          <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-400">
+                Avg Engagement Rate
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-amber-400">
+                <FiTrendingUp className="w-4 h-4" />
+              </div>
+            </div>
+            <div>
+              <p className="text-2xl font-bold tracking-tight text-zinc-100">
+                {avgEngagementRate}%
+              </p>
+              <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 mt-1">
+                <FiCheckCircle className="w-3.5 h-3.5" />
+                <span>Above creator average</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Top Converting Pillar */}
+          <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-400">
+                Top Pillar
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-amber-400">
+                <FiLayers className="w-4 h-4" />
+              </div>
+            </div>
+            <div>
+              <p className="text-base font-bold tracking-tight text-zinc-100 truncate">
+                AI Workflows
+              </p>
+              <p className="text-[11px] text-zinc-500 mt-1 truncate">
+                68% of total viral shares
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Charts & AI Diagnostics Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Bar Chart Container */}
+          <div className="lg:col-span-2 p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+              <div className="flex items-center gap-2">
+                <FiBarChart2 className="w-4 h-4 text-amber-400" />
+                <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+                  Impression & Interaction Distribution
+                </h2>
+              </div>
+              <span className="text-xs text-zinc-500">Live Post Data</span>
+            </div>
+
+            <div className="w-full h-64 bg-zinc-950/60 rounded-xl p-3 border border-zinc-800/80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={posts}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--color-border)"
-                  />
+                <BarChart data={chartData} margin={{ top: 15, right: 15, left: -15, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
                   <XAxis
-                    dataKey="title"
-                    tick={{ fill: "var(--color-text-secondary)", fontSize: 12 }}
-                    interval={0}
-                    angle={0}
-                    textAnchor="middle"
+                    dataKey="name"
+                    tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                    axisLine={{ stroke: "#3f3f46" }}
+                    tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: "var(--color-text-secondary)", fontSize: 12 }}
+                    tick={{ fill: "#71717a", fontSize: 11 }}
+                    axisLine={{ stroke: "#3f3f46" }}
+                    tickLine={false}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "var(--color-surface)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "0.5rem",
+                      backgroundColor: "#18181b",
+                      borderColor: "#27272a",
+                      borderRadius: "0.75rem",
+                      color: "#f4f4f5",
+                      fontSize: "12px",
+                      boxShadow: "0 10px 25px -5px rgba(0,0,0,0.5)",
                     }}
-                    labelStyle={{ color: "var(--color-text)" }}
-                    itemStyle={{ color: "var(--color-text)" }}
+                    itemStyle={{ color: "#e4e4e7" }}
+                    labelStyle={{ color: "#fbbf24", fontWeight: 600, marginBottom: "4px" }}
                   />
-                  <Bar dataKey="views" fill="var(--color-grey-600)" />
-                  <Bar dataKey="likes" fill="var(--color-grey-400)" />
+                  <Bar dataKey="views" name="Impressions" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="engagement" name="Interactions" fill="#10b981" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <p className="text-sm text-gray-400 mt-3">
-              Views and likes by post. Click a row below to add/update data.
-            </p>
-          </div>
-          <div className="bg-surface rounded-xl p-6 shadow-lg border border-border">
-            <div className="flex items-center gap-2 mb-4">
-              <FiZap className="text-gray-400" size={20} />
-              <h2 className="text-xl font-semibold">AI Suggestions</h2>
-            </div>
-            {selectedForSuggestions ? (
-              <div className="text-sm text-gray-400">
-                <p className="font-medium text-white mb-2">
-                  Suggestions for:{" "}
-                  {posts.find((p) => p.id === selectedForSuggestions)?.title}
-                </p>
-                <p className="mt-2">
-                  [AI tips would appear here based on metrics]
-                </p>
+
+            <div className="flex items-center justify-between text-xs text-zinc-400 pt-1">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-amber-500" />
+                  <span>Impressions</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                  <span>Total Interactions</span>
+                </div>
               </div>
-            ) : (
-              <p className="text-sm text-gray-400">
-                Select a post to get AI‑powered suggestions.
-              </p>
-            )}
+              <span className="text-[11px] text-zinc-500">Click any post below to run AI diagnostics</span>
+            </div>
+          </div>
+
+          {/* AI Diagnostics & Insights Panel */}
+          <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-5 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+                <div className="flex items-center gap-2">
+                  <FiZap className="w-4 h-4 text-amber-400" />
+                  <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+                    AI Content Diagnostics
+                  </h2>
+                </div>
+                <Badge variant="warning" className="text-[10px]">
+                  Post {selectedPost.id}
+                </Badge>
+              </div>
+
+              <div className="space-y-3.5">
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
+                    Inspecting Post
+                  </span>
+                  <p className="text-xs font-semibold text-zinc-200 mt-0.5 line-clamp-2">
+                    {selectedPost.title}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-950/70 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400">Engagement Velocity</span>
+                    <span className="font-bold text-amber-400">
+                      {currentInsights.engRate}%
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 font-medium leading-relaxed">
+                    {currentInsights.hookVerdict}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-950/70 space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">
+                    Repurposing Opportunity
+                  </span>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    {currentInsights.repurposeSuggestion}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-950/70 space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">
+                    Optimal Timing Window
+                  </span>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    {currentInsights.cadenceTip}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => router.push(`/content/create?topic=${encodeURIComponent(selectedPost.title)}`)}
+              className="w-full mt-4 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              <FiRefreshCw className="w-3.5 h-3.5" />
+              Spin Next Iteration from Post
+            </button>
           </div>
         </div>
 
-        {/* Content performance list */}
-        <div className="bg-surface rounded-xl p-6 shadow-lg border border-border">
-          <div className="flex items-center gap-2 mb-4">
-            <FiTrendingUp className="text-gray-400" size={20} />
-            <h2 className="text-xl font-semibold">Content Performance</h2>
+        {/* Content Performance Table */}
+        <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+            <div className="flex items-center gap-2">
+              <FiTrendingUp className="w-4 h-4 text-amber-400" />
+              <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+                Active Post Performance Roster
+              </h2>
+            </div>
+            <span className="text-xs text-zinc-500">Edit metrics below to recalculate analytics live</span>
           </div>
+
           <div className="space-y-3">
-            {posts.map((p) => (
-              <div
-                key={p.id}
-                className="p-4 border border-border rounded-xl bg-background hover:bg-surface-hover transition-colors flex justify-between items-center"
-              >
-                <div>
-                  <p className="font-medium">{p.title}</p>
-                  <p className="text-sm text-gray-400 mt-1">{p.platform}</p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center gap-2">
-                    <FiEye className="text-gray-400" size={16} />
-                    <input
-                      type="number"
-                      placeholder="Views"
-                      value={p.views}
-                      onChange={(e) =>
-                        updateMetrics(p.id, Number(e.target.value), p.likes)
-                      }
-                      className="w-24 bg-background border border-border text-white rounded-xl p-2 text-sm focus:border-border-light focus:outline-none"
-                    />
+            {posts.map((p) => {
+              const isSelected = p.id === selectedPostId;
+              const postEng =
+                p.views > 0
+                  ? (((p.likes + p.comments) / p.views) * 100).toFixed(1)
+                  : "0.0";
+
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => setSelectedPostId(p.id)}
+                  className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col md:flex-row md:items-center md:justify-between gap-4 ${
+                    isSelected
+                      ? "border-amber-500/50 bg-zinc-950 shadow-sm"
+                      : "border-zinc-800/80 bg-zinc-950/60 hover:bg-zinc-900/50 hover:border-zinc-700"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-zinc-200 truncate">
+                        {p.title}
+                      </span>
+                      <Badge variant="default" className="text-[10px]">
+                        {p.platform}
+                      </Badge>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {p.pillar}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-zinc-500">
+                      Published {p.publishedAt} • Computed Engagement Rate:{" "}
+                      <span className="text-emerald-400 font-semibold">{postEng}%</span>
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <FiHeart className="text-gray-400" size={16} />
-                    <input
-                      type="number"
-                      placeholder="Likes"
-                      value={p.likes}
-                      onChange={(e) =>
-                        updateMetrics(p.id, p.views, Number(e.target.value))
-                      }
-                      className="w-24 bg-background border border-border text-white rounded-xl p-2 text-sm focus:border-border-light focus:outline-none"
-                    />
+
+                  {/* Interactive Metric Input Controls */}
+                  <div
+                    className="flex items-center gap-3 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <FiEye className="w-3.5 h-3.5 text-zinc-400" />
+                      <input
+                        type="number"
+                        value={p.views}
+                        onChange={(e) =>
+                          updateMetrics(p.id, Number(e.target.value), p.likes, p.comments)
+                        }
+                        className="w-20 px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-100 text-xs font-medium focus:outline-none focus:border-zinc-600 transition-colors"
+                        title="Views / Impressions"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <FiHeart className="w-3.5 h-3.5 text-zinc-400" />
+                      <input
+                        type="number"
+                        value={p.likes}
+                        onChange={(e) =>
+                          updateMetrics(p.id, p.views, Number(e.target.value), p.comments)
+                        }
+                        className="w-16 px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-100 text-xs font-medium focus:outline-none focus:border-zinc-600 transition-colors"
+                        title="Likes / Reactions"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPostId(p.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        isSelected
+                          ? "bg-amber-400 text-zinc-950 font-bold"
+                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                      }`}
+                    >
+                      {isSelected ? "Active Diagnostic" : "Inspect"}
+                    </button>
                   </div>
-                  {p.views === 0 && p.likes === 0 ? (
-                    <button
-                      onClick={() => setSelectedForSuggestions(p.id)}
-                      className="px-3 py-2 bg-gray-300 hover:bg-gray-400 text-black rounded-xl text-sm transition-colors font-medium"
-                    >
-                      Add Performance
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setSelectedForSuggestions(p.id)}
-                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-white text-black rounded-xl text-sm transition-colors font-medium shadow-sm"
-                    >
-                      <FiZap size={14} />
-                      Get Suggestions
-                    </button>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

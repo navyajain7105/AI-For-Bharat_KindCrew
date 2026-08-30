@@ -98,7 +98,8 @@ function asNonEmptyString(value: unknown): string | undefined {
 
 export default function ContentPage() {
   const router = useRouter();
-  const { isAuthenticated, authReady, userInfo, token } = useAuth();
+  const { authReady, userInfo, token } = useAuth();
+  const authenticated = !!token && !!userInfo;
   const {
     contentList,
     customization,
@@ -145,13 +146,13 @@ export default function ContentPage() {
   });
 
   useEffect(() => {
-    if (authReady && !isAuthenticated()) {
+    if (authReady && !authenticated) {
       router.replace("/");
     }
-  }, [authReady, isAuthenticated, router]);
+  }, [authReady, authenticated, router]);
 
   useEffect(() => {
-    if (userInfo?.userId && token) {
+    if (authReady && authenticated && userInfo?.userId && token) {
       fetchUserContent(userInfo.userId);
 
       const localKey = `kindcrew-content-local-${userInfo.userId}`;
@@ -167,7 +168,7 @@ export default function ContentPage() {
         console.error("Failed to load local saved content:", error);
       }
     }
-  }, [userInfo?.userId, token, fetchUserContent]);
+  }, [authReady, authenticated, userInfo?.userId, token, fetchUserContent]);
 
   useEffect(() => {
     const loadSavedIdeas = async () => {
@@ -189,10 +190,10 @@ export default function ContentPage() {
       }
     };
 
-    if (authReady && isAuthenticated() && token) {
+    if (authReady && authenticated && token) {
       loadSavedIdeas();
     }
-  }, [authReady, isAuthenticated, token]);
+  }, [authReady, authenticated, token]);
 
   const platformVariants = useMemo(() => {
     if (

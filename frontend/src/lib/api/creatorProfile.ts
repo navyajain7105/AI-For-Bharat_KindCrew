@@ -3,6 +3,7 @@
  * Handles all API calls related to creator profiles
  */
 import { API_URL } from "@/lib/constants";
+import { authenticatedFetch as fetch } from "@/lib/apiClient";
 
 const API_BASE = `${API_URL.replace(/\/$/, "").replace(/\/api$/, "")}/api`;
 
@@ -20,17 +21,28 @@ export type CreatorProfileData = {
   targetAudience: string;
   platforms?: Platform[];
   goals: {
-    primaryGoal: "growth" | "monetization" | "engagement" | "brand-building";
+    primaryGoal:
+      | "growth"
+      | "monetization"
+      | "engagement"
+      | "brand-building"
+      | "community-building"
+      | "personal-brand"
+      | "thought-leadership";
     creatorLevel: "beginner" | "intermediate" | "advanced";
   };
   strategy: {
     contentStrategy: "educational" | "entertainment" | "promotional";
     postingFrequency: string;
     contentPillars: string[];
+    contentApproach?: string;
   };
   preferences?: {
     tones?: string[];
     formats?: string[];
+    contentStyle?: string;
+    voiceTone?: string;
+    avoidTopics?: string[];
     constraints?: {
       emojiUsage?: boolean;
       ctaStrength?: "weak" | "medium" | "strong";
@@ -72,7 +84,7 @@ export async function createCreatorProfile(
       fullData: JSON.stringify(profileData),
     });
 
-    const response = await fetch(`${API_BASE}/creator-profiles`, {
+    const response = await fetch(`${API_BASE}/creator-profile`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -86,9 +98,20 @@ export async function createCreatorProfile(
       let message = `Failed to create profile (HTTP ${response.status})`;
 
       try {
-        const parsed = JSON.parse(raw) as { error?: string; message?: string };
+        const parsed = JSON.parse(raw) as { error?: string; message?: string; code?: string; data?: any };
+        if (response.status === 409 && parsed.code === "PROFILE_ALREADY_EXISTS") {
+          // Profile already exists: reconcile frontend with the existing profile without overwriting data
+          if (parsed.data?.creatorId) {
+            return parsed.data;
+          }
+          const freshProfile = await getMyProfile(token);
+          if (freshProfile?.creatorId) {
+            return freshProfile;
+          }
+        }
         message = parsed.error || parsed.message || message;
-      } catch {
+      } catch (parseErr: any) {
+        if (parseErr?.creatorId) return parseErr;
         if (raw) {
           message = `${message}: ${raw}`;
         }
@@ -119,7 +142,7 @@ export async function createCreatorProfile(
 export async function getMyProfile(
   token: string,
 ): Promise<CreatorProfile | null> {
-  const response = await fetch(`${API_BASE}/creator-profiles/me/profile`, {
+  const response = await fetch(`${API_BASE}/creator-profile`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -144,18 +167,17 @@ export async function getMyProfile(
  */
 export async function updateCreatorProfile(
   token: string,
-  creatorId: string,
+  _creatorId: string, // Kept for TS signature compatibility but unused
   profileData: Partial<CreatorProfileData>,
 ): Promise<CreatorProfile> {
   console.log("🌐 [API] Updating profile - sending to backend:", {
-    creatorId,
     competitors: profileData.competitors,
     platforms: profileData.platforms,
     niche: profileData.niche,
     fullData: JSON.stringify(profileData),
   });
 
-  const response = await fetch(`${API_BASE}/creator-profiles/${creatorId}`, {
+  const response = await fetch(`${API_BASE}/creator-profile`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -201,4 +223,23 @@ export async function completeOnboarding(
 
   const data = await response.json();
   return data.data;
+}
+
+/**
+ * Persist onboarding skip status (account metadata)
+ */
+export async function skipOnboarding(token: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE}/auth/skip-onboarding`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to persist onboarding skip");
+  }
+
+  return true;
 }

@@ -12,7 +12,8 @@ export default function AuthenticatedLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, authReady, logout, initializeAuth } = useAuth();
+  const { token, userInfo, authReady, logout, initializeAuth } = useAuth();
+  const authenticated = !!token && !!userInfo;
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileClosing, setMobileClosing] = useState(false);
@@ -23,10 +24,10 @@ export default function AuthenticatedLayout({
 
   // Redirect to home if not authenticated
   useEffect(() => {
-    if (authReady && !isAuthenticated()) {
+    if (authReady && !authenticated) {
       router.replace("/");
     }
-  }, [authReady, isAuthenticated, router]);
+  }, [authReady, authenticated, router]);
 
   // Prevent body scroll when mobile drawer is open
   useEffect(() => {
@@ -68,7 +69,7 @@ export default function AuthenticatedLayout({
     );
   }
 
-  if (!isAuthenticated()) {
+  if (!authenticated) {
     return null;
   }
 
@@ -132,7 +133,7 @@ export default function AuthenticatedLayout({
 
       {/* Main Content Area */}
       <main
-        className={`flex-1 min-w-0 w-full overflow-x-hidden transition-all duration-300 ${
+        className={`flex-1 min-w-0 w-full overflow-x-hidden transition-[margin] duration-300 ${
           collapsed ? "lg:ml-20" : "lg:ml-64"
         }`}
       >

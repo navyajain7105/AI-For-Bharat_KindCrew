@@ -1,66 +1,95 @@
 "use client";
 
 import Link from "next/link";
-import { FiAlertCircle } from "react-icons/fi";
+import { FiCheckCircle, FiCircle, FiTrendingUp } from "react-icons/fi";
+import { useAppStore } from "@/store/useAppStore";
 
 type SetupBannerProps = {
   onDismiss?: () => void;
 };
 
 export default function SetupBanner({ onDismiss }: SetupBannerProps) {
+  const creatorProfile = useAppStore((state) => state.creatorProfile);
+  const hasProfile = useAppStore((state) => state.hasProfile);
+
+  // Derived Checklist values
+  const hasNiche = !!creatorProfile?.niche?.primary;
+  const hasAudience = !!creatorProfile?.targetAudience;
+  const hasPlatforms = !!(creatorProfile?.platforms && creatorProfile.platforms.length > 0);
+  const hasStrategy = !!(
+    creatorProfile?.strategy?.postingFrequency &&
+    creatorProfile.strategy.postingFrequency !== "1/week"
+  );
+  const hasVoice = !!(
+    creatorProfile?.preferences?.voiceTone ||
+    (creatorProfile?.preferences?.tones && creatorProfile.preferences.tones.length > 1)
+  );
+
+  const checklistItems = [
+    { label: "Account Setup", completed: true },
+    { label: "Niche Focus", completed: hasNiche },
+    { label: "Audience Target", completed: hasAudience },
+    { label: "Platforms Linked", completed: hasPlatforms },
+    { label: "Content Strategy", completed: hasStrategy },
+    { label: "Brand Voice", completed: hasVoice },
+  ];
+
+  const completedCount = checklistItems.filter((i) => i.completed).length;
+  const progressPercent = Math.round((completedCount / checklistItems.length) * 100);
+
   return (
     <div
-      className="p-4 sm:p-6 rounded-xl mb-6 border"
+      className="p-5 sm:p-6 rounded-xl mb-6 border border-slate-800"
       style={{
-        background:
-          "linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(167, 139, 250, 0.1) 100%)",
-        borderColor: "rgba(96, 165, 250, 0.3)",
+        backgroundColor: "var(--color-surface)",
       }}
     >
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <FiAlertCircle
-              className="w-5 h-5"
-              style={{ color: "var(--color-text)" }}
-            />
-            <h3
-              className="text-lg sm:text-xl font-semibold"
-              style={{ color: "var(--color-text)" }}
-            >
-              Complete Your Setup
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex-1 space-y-3">
+          {/* Header */}
+          <div className="flex items-center gap-2">
+            <FiTrendingUp className="w-5 h-5 text-blue-400" />
+            <h3 className="text-lg font-semibold text-white">
+              Personalize KindCrew ({progressPercent}% Complete)
             </h3>
           </div>
-          <p
-            className="text-sm sm:text-base"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
-            Finish setting up your creator profile to unlock all features and
-            get personalized content recommendations.
+
+          <p className="text-sm text-slate-400 max-w-xl">
+            Baseline your audience and brand settings to unlock customized AI ideas, specific post variants, and smart suggestions tailored to your voice.
           </p>
+
+          {/* Progress checklist line */}
+          <div className="flex flex-wrap gap-x-4 gap-y-2 pt-2">
+            {checklistItems.map((item, idx) => (
+              <div key={idx} className="flex items-center gap-1.5 text-xs">
+                {item.completed ? (
+                  <FiCheckCircle className="w-3.5 h-3.5 text-green-400" />
+                ) : (
+                  <FiCircle className="w-3.5 h-3.5 text-slate-600" />
+                )}
+                <span className={item.completed ? "text-slate-300 font-medium" : "text-slate-500"}>
+                  {item.label}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-3 w-full sm:w-auto">
+
+        {/* Action Buttons */}
+        <div className="flex flex-row md:flex-col lg:flex-row gap-3 min-w-[200px]">
           {onDismiss && (
             <button
               onClick={onDismiss}
-              className="flex-1 sm:flex-none px-4 py-2 rounded-lg font-medium transition-colors text-sm"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                color: "var(--color-text-secondary)",
-              }}
+              className="flex-1 px-4 py-2.5 rounded-lg font-medium border border-slate-700 text-slate-300 hover:bg-slate-900 transition-colors text-sm"
             >
-              Later
+              Dismiss
             </button>
           )}
           <Link
-            href="/onboarding"
-            className="flex-1 sm:flex-none px-6 py-2 rounded-lg font-medium transition-colors text-sm"
-            style={{
-              background: "linear-gradient(90deg, #60a5fa 0%, #a78bfa 100%)",
-              color: "var(--color-white)",
-            }}
+            href={hasProfile ? "/settings" : "/onboarding"}
+            className="flex-1 px-5 py-2.5 rounded-lg font-medium text-center bg-white text-slate-950 hover:bg-slate-200 transition-colors text-sm flex items-center justify-center gap-1"
           >
-            Complete Setup
+            {hasProfile ? "Optimize Settings" : "Configure Wizard"}
           </Link>
         </div>
       </div>

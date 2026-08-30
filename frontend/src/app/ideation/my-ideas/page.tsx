@@ -10,7 +10,8 @@ import {
 import { createContentFromIdea } from "@/lib/api/content";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { useAuth } from "@/hooks/useAuth";
-import ReactMarkdown from "react-markdown";
+import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { Badge } from "@/components/ui/Badge";
 import {
   FiArrowLeft,
   FiCheck,
@@ -21,16 +22,17 @@ import {
   FiPlus,
   FiSearch,
   FiEdit3,
+  FiTarget,
+  FiAlertCircle,
+  FiLayers,
+  FiShare2,
 } from "react-icons/fi";
 
 function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
+  if (error instanceof Error) return error.message;
   return "Something went wrong";
 }
 
-// helper for rendering arbitrary values safely
 function safeText(val: any): string {
   if (val == null) return "";
   if (typeof val === "object") {
@@ -43,7 +45,6 @@ function safeText(val: any): string {
   return String(val);
 }
 
-// Helper to safely format scores
 const formatScore = (score: number | string | undefined): string => {
   if (typeof score === "number") return score.toFixed(1);
   if (typeof score === "string") return parseFloat(score).toFixed(1);
@@ -63,7 +64,6 @@ function normalizeResearchData(idea: IdeaBrief): NormalizedResearch {
     if (value && typeof value === "object" && !Array.isArray(value)) {
       return value as Record<string, unknown>;
     }
-
     if (typeof value === "string") {
       try {
         const parsed = JSON.parse(value);
@@ -74,7 +74,6 @@ function normalizeResearchData(idea: IdeaBrief): NormalizedResearch {
         return {};
       }
     }
-
     return {};
   };
 
@@ -82,14 +81,12 @@ function normalizeResearchData(idea: IdeaBrief): NormalizedResearch {
     if (Array.isArray(value)) {
       return value.map((item) => String(item ?? "").trim()).filter(Boolean);
     }
-
     if (typeof value === "string") {
       return value
         .split(/\n|\||,|;/)
         .map((item) => item.trim())
         .filter(Boolean);
     }
-
     return [];
   };
 
@@ -164,47 +161,34 @@ export default function MyIdeasPage() {
   const [loading, setLoading] = useState(true);
   const [ideas, setIdeas] = useState<IdeaBrief[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [copiedIdeaId, setCopiedIdeaId] = useState<string | null>(null);
-  const [researchingIdeaId, setResearchingIdeaId] = useState<string | null>(
-    null,
-  );
-  const [generatingContentIdeaId, setGeneratingContentIdeaId] = useState<string | null>(
-    null,
-  );
+  const [researchingIdeaId, setResearchingIdeaId] = useState<string | null>(null);
+  const [generatingContentIdeaId, setGeneratingContentIdeaId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Only load ideas once auth is ready and we have a userId
     if (authReady && userInfo?.userId && token) {
       loadIdeas();
     } else if (authReady && !userInfo?.userId) {
-      // Auth is ready but no user - shouldn't happen in authenticated page
       setLoading(false);
       setError("Not authenticated");
     }
   }, [authReady, userInfo?.userId, token]);
 
   const loadIdeas = async () => {
-    if (!userInfo?.userId || !token) {
-      console.error("No userId available");
-      setError("User not authenticated");
-      setLoading(false);
-      return;
-    }
-
+    if (!userInfo?.userId || !token) return;
     setLoading(true);
     setError(null);
-
     try {
       const result = await getUserIdeas(token);
-
       if (result.success && result.ideas) {
         setIdeas(result.ideas);
       } else {
         setError(result.error || "Failed to load ideas");
       }
     } catch (err: unknown) {
-      console.error("Error loading ideas:", err);
       setError(toErrorMessage(err));
     } finally {
       setLoading(false);
@@ -212,32 +196,20 @@ export default function MyIdeasPage() {
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 8) return "text-green-600 bg-green-50 border-green-200";
-    if (score >= 6) return "text-yellow-600 bg-yellow-50 border-yellow-200";
-    return "text-red-600 bg-red-50 border-red-200";
+    if (score >= 8) return "text-emerald-400";
+    if (score >= 6) return "text-amber-400";
+    return "text-rose-400";
   };
 
   const formatDate = (dateString: string | number | undefined) => {
-    if (!dateString) return "Unknown date";
-    const date =
-      typeof dateString === "string"
-        ? new Date(dateString)
-        : new Date(dateString);
-    if (isNaN(date.getTime())) return "Invalid date";
+    if (!dateString) return "Recent";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Recent";
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
-  };
-
-  const normalizeScore = (score: number | string | undefined): number => {
-    if (typeof score === "number") return score;
-    if (typeof score === "string") {
-      const parsed = parseFloat(score);
-      return Number.isNaN(parsed) ? 0 : parsed;
-    }
-    return 0;
   };
 
   const buildIdeaExportText = (idea: IdeaBrief) => {
@@ -254,15 +226,7 @@ export default function MyIdeasPage() {
       `- Virality: ${formatScore(idea.scores?.virality)}/10`,
       `- Clarity: ${formatScore(idea.scores?.clarity)}/10`,
       `- Competition: ${formatScore(idea.scores?.competition)}/10`,
-      "",
-      "Research:",
-      `- Audience Pain Points: ${(idea.research?.audiencePainPoints || []).join(" | ") || "N/A"}`,
-      `- Competitor Patterns: ${(idea.research?.competitorPatterns || []).join(" | ") || "N/A"}`,
-      `- Recommended Structure: ${idea.research?.recommendedStructure || "N/A"}`,
-      `- Key Points: ${(idea.research?.keyPoints || []).join(" | ") || "N/A"}`,
-      `- Your Angle Strength: ${idea.research?.yourAngleStrength || "N/A"}`,
     ];
-
     return lines.join("\n");
   };
 
@@ -272,26 +236,20 @@ export default function MyIdeasPage() {
       setCopiedIdeaId(idea.ideaId);
       setTimeout(() => setCopiedIdeaId(null), 1500);
     } catch (_error) {
-      setError("Unable to copy content. Please try again.");
+      setError("Unable to copy content.");
     }
   };
 
   const handleGenerateResearch = async (idea: IdeaBrief) => {
-    if (!userInfo?.userId || !token) {
-      setError("User not authenticated");
-      return;
-    }
-
+    if (!userInfo?.userId || !token) return;
     setError(null);
     setResearchingIdeaId(idea.ideaId);
-
     try {
       const result = await enrichIdeaResearch(token, idea.ideaId);
       if (!result.success) {
         setError(result.error || "Failed to generate research");
         return;
       }
-
       await loadIdeas();
       setExpandedIdeaId(idea.ideaId);
     } catch (err: unknown) {
@@ -302,22 +260,15 @@ export default function MyIdeasPage() {
   };
 
   const handleGenerateContent = async (idea: IdeaBrief) => {
-    if (!userInfo?.userId || !token) {
-      setError("User not authenticated");
-      return;
-    }
-
+    if (!userInfo?.userId || !token) return;
     setError(null);
     setGeneratingContentIdeaId(idea.ideaId);
-
     try {
       const result = await createContentFromIdea(token, idea.ideaId);
       if (!result.success) {
         setError(result.error || "Failed to generate content");
         return;
       }
-
-      // Redirect to content library to view the generated content
       router.push("/content/library");
     } catch (err: unknown) {
       setError(toErrorMessage(err));
@@ -326,626 +277,273 @@ export default function MyIdeasPage() {
     }
   };
 
+  const filteredIdeas = ideas.filter((idea) => {
+    const matchesSearch =
+      !searchQuery.trim() ||
+      idea.topic?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      idea.angle?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesPlatform =
+      selectedPlatform === "all" ||
+      idea.platform?.toLowerCase() === selectedPlatform.toLowerCase();
+    return matchesSearch && matchesPlatform;
+  });
+
+  const highScoringCount = ideas.filter((i) => Number(i.scores?.overall || 0) >= 8).length;
+  const readyCount = ideas.filter((i) => i.hasContent).length;
+
   return (
     <AuthenticatedLayout>
-      <div className="w-full max-w-7xl mx-auto overflow-x-hidden">
-        <div className="mb-8">
-          <button
-            onClick={() => router.push("/ideation")}
-            className="mb-4 flex items-center gap-2"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
-            <FiArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1
-                className="text-3xl font-bold mb-2"
-                style={{ color: "var(--color-text)" }}
-              >
-                My Content Ideas
-              </h1>
-              <p style={{ color: "var(--color-text-secondary)" }}>
-                Your approved ideas ready for content creation
-              </p>
+      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">
+                Stage 1 — Ideation Vault
+              </span>
             </div>
-            <button
-              onClick={() => router.push("/ideation")}
-              className="py-2 px-6 rounded-lg font-medium transition-colors flex items-center gap-2"
-              style={{
-                backgroundColor: "var(--color-text)",
-                color: "var(--color-background)",
-              }}
-            >
-              <FiPlus className="w-4 h-4" />
-              New Idea
-            </button>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+              My Approved Ideas
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1">
+              Browse curated ideas, inspect research foundations, and launch full multi-platform drafting.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => router.push("/ideation")}
+            className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 hover:bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-zinc-950 shadow-sm transition-all transform hover:scale-[1.02] active:scale-[0.98] self-start sm:self-auto"
+          >
+            <FiPlus className="w-4 h-4" />
+            <span>Generate New Ideas</span>
+          </button>
+        </div>
+
+        {/* Quick Stats Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
+            <p className="text-xs text-zinc-400 font-medium">Total Saved Ideas</p>
+            <p className="text-2xl font-bold text-zinc-100 mt-1">{ideas.length}</p>
+          </div>
+          <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
+            <p className="text-xs text-zinc-400 font-medium">High Potential (8.0+ Score)</p>
+            <p className="text-2xl font-bold text-emerald-400 mt-1">{highScoringCount}</p>
+          </div>
+          <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
+            <p className="text-xs text-zinc-400 font-medium">Drafts Generated</p>
+            <p className="text-2xl font-bold text-amber-400 mt-1">{readyCount}</p>
           </div>
         </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div
-            className="rounded-xl p-12 text-center"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p style={{ color: "var(--color-text-secondary)" }}>
-              Loading your ideas...
-            </p>
+        {/* Search & Platform Filter Bar */}
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative flex-1 w-full">
+            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search ideas by topic, keyword, or angle..."
+              className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-800 bg-zinc-900/60 text-zinc-100 text-xs sm:text-sm focus:outline-none focus:border-zinc-600 transition-colors"
+            />
           </div>
-        )}
 
-        {/* Error State */}
-        {error && !loading && (
-          <div
-            className="px-6 py-4 rounded-lg"
-            style={{ border: "1px solid #7f1d1d", color: "#fca5a5" }}
-          >
-            {error}
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && !error && ideas.length === 0 && (
-          <div
-            className="rounded-xl p-12 text-center"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <div className="mb-4 flex justify-center">
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: "var(--color-surface-hover)" }}
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-900 border border-zinc-800 w-full sm:w-auto overflow-x-auto">
+            {["all", "linkedin", "twitter", "instagram", "youtube"].map((plat) => (
+              <button
+                key={plat}
+                type="button"
+                onClick={() => setSelectedPlatform(plat)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all shrink-0 ${
+                  selectedPlatform === plat
+                    ? "bg-zinc-800 text-zinc-100 shadow-sm border border-zinc-700/60"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
               >
-                <FiFolder
-                  className="w-7 h-7"
-                  style={{ color: "var(--color-text)" }}
-                />
-              </div>
-            </div>
-            <h3
-              className="text-xl font-semibold mb-2"
-              style={{ color: "var(--color-text)" }}
-            >
-              No Ideas Yet
-            </h3>
-            <p
-              className="mb-6"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
-              Start generating content ideas to build your pipeline
-            </p>
-            <button
-              onClick={() => router.push("/ideation")}
-              className="py-3 px-8 rounded-lg font-medium transition-colors"
-              style={{
-                backgroundColor: "var(--color-text)",
-                color: "var(--color-background)",
-              }}
-            >
-              Generate Your First Idea
-            </button>
+                {plat === "all" ? "All Platforms" : plat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <div className="p-4 rounded-xl border border-rose-800/40 bg-rose-950/30 text-rose-300 text-xs sm:text-sm flex items-center gap-2.5">
+            <FiAlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Ideas Grid */}
-        {!loading && !error && ideas.length > 0 && (
-          <div className="grid md:grid-cols-2 gap-6 items-stretch">
-            {ideas.map((idea) => {
+        {/* Ideas Grid / List */}
+        {loading ? (
+          <div className="p-12 text-center text-zinc-500 text-xs sm:text-sm">
+            Loading your ideas vault...
+          </div>
+        ) : filteredIdeas.length === 0 ? (
+          <div className="p-12 text-center rounded-2xl border border-zinc-800 bg-zinc-900/20 space-y-3">
+            <FiFolder className="w-8 h-8 text-zinc-600 mx-auto" />
+            <p className="text-sm font-semibold text-zinc-300">No ideas found</p>
+            <p className="text-xs text-zinc-500">
+              {searchQuery ? "Try refining your search query." : "Generate ideas using our AI ideation engine."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredIdeas.map((idea) => {
               const isExpanded = expandedIdeaId === idea.ideaId;
               const research = normalizeResearchData(idea);
               const hasResearch =
                 research.audiencePainPoints.length > 0 ||
                 research.competitorPatterns.length > 0 ||
                 research.keyPoints.length > 0 ||
-                Boolean(research.recommendedStructure) ||
-                Boolean(research.yourAngleStrength);
+                !!research.recommendedStructure ||
+                !!research.yourAngleStrength;
 
               return (
                 <div
                   key={idea.ideaId}
-                  className="rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md h-full flex flex-col"
-                  style={{
-                    backgroundColor: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                    boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-                  }}
+                  className={`p-5 rounded-2xl border transition-all flex flex-col justify-between space-y-4 ${
+                    isExpanded
+                      ? "border-zinc-700 bg-zinc-950 shadow-md"
+                      : "border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-zinc-700"
+                  }`}
                 >
-                  {/* Header */}
-                  <div
-                    className="p-4"
-                    style={{
-                      backgroundColor: "var(--color-surface-hover)",
-                      borderBottom: "1px solid var(--color-border)",
-                    }}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <span
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border ${getScoreColor(normalizeScore(idea.scores?.overall))}`}
-                      >
-                        {formatScore(idea.scores?.overall || 0)}/10
-                      </span>
-                      <span
-                        className="text-xs"
-                        style={{ color: "var(--color-text-muted)" }}
-                      >
-                        {formatDate(idea.createdAt)}
-                      </span>
-                    </div>
-
-                    {/* Title */}
-                    <h3
-                      className="font-bold text-base leading-snug break-words"
-                      style={{ color: "var(--color-text)" }}
-                    >
-                      {safeText(idea.topic) || "Untitled idea"}
-                    </h3>
-                  </div>
-
-                  {/* Main Content Section */}
-                  <div className="p-5 flex-1 flex flex-col">
-                    {/* Hook/Description */}
-                    {idea.hookIdea && (
-                      <div
-                        className="text-sm mb-4 p-4 rounded-xl"
-                        style={{
-                          backgroundColor: "var(--color-surface-hover)",
-                          border: "1px solid var(--color-border)",
-                          color: "var(--color-text-secondary)",
-                        }}
-                      >
-                        <div className="leading-7">
-                          <ReactMarkdown>{safeText(idea.hookIdea)}</ReactMarkdown>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <span
-                        className="px-3 py-1.5 text-xs font-medium rounded-full max-w-full break-words border"
-                        style={{
-                          backgroundColor: "var(--color-surface-hover)",
-                          color: "var(--color-text-secondary)",
-                          borderColor: "var(--color-border)",
-                        }}
-                      >
-                        {safeText(idea.platform)}
-                      </span>
-                      <span
-                        className="px-3 py-1.5 text-xs font-medium rounded-xl max-w-full break-words border"
-                        style={{
-                          backgroundColor: "var(--color-surface-hover)",
-                          color: "var(--color-text-secondary)",
-                          borderColor: "var(--color-border)",
-                        }}
-                      >
-                        {safeText(idea.contentType)}
-                      </span>
-                      <span
-                        className="px-3 py-1.5 text-xs font-medium rounded-full max-w-full break-words border"
-                        style={{
-                          backgroundColor: "var(--color-surface-hover)",
-                          color: "var(--color-text-secondary)",
-                          borderColor: "var(--color-border)",
-                        }}
-                      >
-                        {safeText(idea.targetAudience)}
-                      </span>
-                    </div>
-
-                    {/* Score Breakdown */}
-                    {idea.scores && (
-                      <div
-                        className="rounded-xl p-4 mb-4"
-                        style={{
-                          backgroundColor: "var(--color-surface-hover)",
-                          border: "1px solid var(--color-border)",
-                        }}
-                      >
-                        <div className="grid grid-cols-3 gap-3 text-center text-xs">
-                          <div
-                            className="p-2 rounded-lg"
-                            style={{ backgroundColor: "var(--color-surface)" }}
-                          >
-                            <div
-                              className="font-medium mb-1"
-                              style={{ color: "var(--color-text-muted)" }}
-                            >
-                              Viral
-                            </div>
-                            <div
-                              className="font-bold text-base"
-                              style={{ color: "var(--color-text)" }}
-                            >
-                              {formatScore(idea.scores?.virality)}
-                            </div>
-                          </div>
-                          <div
-                            className="p-2 rounded-lg"
-                            style={{ backgroundColor: "var(--color-surface)" }}
-                          >
-                            <div
-                              className="font-medium mb-1"
-                              style={{ color: "var(--color-text-muted)" }}
-                            >
-                              Clarity
-                            </div>
-                            <div
-                              className="font-bold text-base"
-                              style={{ color: "var(--color-text)" }}
-                            >
-                              {formatScore(idea.scores?.clarity)}
-                            </div>
-                          </div>
-                          <div
-                            className="p-2 rounded-lg"
-                            style={{ backgroundColor: "var(--color-surface)" }}
-                          >
-                            <div
-                              className="font-medium mb-1"
-                              style={{ color: "var(--color-text-muted)" }}
-                            >
-                              Comp
-                            </div>
-                            <div
-                              className="font-bold text-base"
-                              style={{ color: "var(--color-text)" }}
-                            >
-                              {formatScore(idea.scores?.competition)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          setExpandedIdeaId(isExpanded ? null : idea.ideaId)
-                        }
-                        className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
-                        style={{
-                          backgroundColor: "var(--color-surface-hover)",
-                          color: "var(--color-text)",
-                          border: isExpanded
-                            ? "2px solid var(--color-text-muted)"
-                            : "1px solid var(--color-border)",
-                        }}
-                      >
-                        {isExpanded ? (
-                          <FiEyeOff className="w-4 h-4" />
-                        ) : (
-                          <FiEye className="w-4 h-4" />
-                        )}
-                        {isExpanded ? "Hide" : "View"}
-                      </button>
-                      <button
-                        onClick={() => handleCopyIdea(idea)}
-                        className="py-2.5 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
-                        style={{
-                          backgroundColor:
-                            copiedIdeaId === idea.ideaId
-                              ? "var(--color-surface)"
-                              : "var(--color-surface-hover)",
-                          color: "var(--color-text)",
-                          border:
-                            copiedIdeaId === idea.ideaId
-                              ? "2px solid var(--color-text-muted)"
-                              : "1px solid var(--color-border)",
-                        }}
-                      >
-                        {copiedIdeaId === idea.ideaId ? (
-                          <FiCheck className="w-4 h-4" />
-                        ) : (
-                          <FiCopy className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-
-                    {/* Expanded Details */}
-                    {isExpanded && (
-                      <div
-                        className="mt-4 pt-4 border-t space-y-4"
-                        style={{ borderColor: "var(--color-border)" }}
-                      >
-                        {/* Angle */}
-                        <div
-                          className="p-4 rounded-xl"
-                          style={{
-                            backgroundColor: "var(--color-surface-hover)",
-                            border: "1px solid var(--color-border)",
-                          }}
-                        >
-                          <div
-                            className="text-xs font-semibold mb-2"
-                            style={{ color: "var(--color-text-muted)" }}
-                          >
-                            Angle
-                          </div>
-                          <div
-                            className="text-sm break-words leading-7"
-                            style={{ color: "var(--color-text)" }}
-                          >
-                            <ReactMarkdown>
-                              {safeText(idea.angle) || "No angle specified"}
-                            </ReactMarkdown>
-                          </div>
-                        </div>
-
-                        {/* Research Section */}
-                        {hasResearch ? (
-                          <div className="space-y-3">
-                            <div
-                              className="text-xs font-semibold uppercase tracking-wide"
-                              style={{ color: "var(--color-text-muted)" }}
-                            >
-                              Research Insights
-                            </div>
-
-                            {research.audiencePainPoints.length > 0 && (
-                              <div
-                                className="p-4 rounded-xl"
-                                style={{
-                                  backgroundColor: "var(--color-surface-hover)",
-                                  border: "1px solid var(--color-border)",
-                                }}
-                              >
-                                <div
-                                  className="text-xs font-semibold mb-2"
-                                  style={{ color: "var(--color-text-muted)" }}
-                                >
-                                  Audience Pain Points
-                                </div>
-                                <ul
-                                  className="text-sm leading-7 list-disc pl-5 space-y-1"
-                                  style={{
-                                    color: "var(--color-text-secondary)",
-                                  }}
-                                >
-                                  {research.audiencePainPoints.map(
-                                    (point, idx) => (
-                                      <li key={`pain-${idea.ideaId}-${idx}`}>
-                                        {point}
-                                      </li>
-                                    ),
-                                  )}
-                                </ul>
-                              </div>
-                            )}
-
-                            {research.competitorPatterns.length > 0 && (
-                              <div
-                                className="p-4 rounded-xl"
-                                style={{
-                                  backgroundColor: "var(--color-surface-hover)",
-                                  border: "1px solid var(--color-border)",
-                                }}
-                              >
-                                <div
-                                  className="text-xs font-semibold mb-2"
-                                  style={{ color: "var(--color-text-muted)" }}
-                                >
-                                  Competitor Patterns
-                                </div>
-                                <ul
-                                  className="text-sm leading-7 list-disc pl-5 space-y-1"
-                                  style={{
-                                    color: "var(--color-text-secondary)",
-                                  }}
-                                >
-                                  {research.competitorPatterns.map(
-                                    (pattern, idx) => (
-                                      <li key={`pattern-${idea.ideaId}-${idx}`}>
-                                        {pattern}
-                                      </li>
-                                    ),
-                                  )}
-                                </ul>
-                              </div>
-                            )}
-
-                            {research.keyPoints.length > 0 && (
-                              <div
-                                className="p-4 rounded-xl"
-                                style={{
-                                  backgroundColor: "var(--color-surface-hover)",
-                                  border: "1px solid var(--color-border)",
-                                }}
-                              >
-                                <div
-                                  className="text-xs font-semibold mb-2"
-                                  style={{ color: "var(--color-text-muted)" }}
-                                >
-                                  Key Points
-                                </div>
-                                <ul
-                                  className="text-sm leading-7 list-disc pl-5 space-y-1"
-                                  style={{
-                                    color: "var(--color-text-secondary)",
-                                  }}
-                                >
-                                  {research.keyPoints.map((point, idx) => (
-                                    <li key={`key-${idea.ideaId}-${idx}`}>
-                                      {point}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-
-                            {research.recommendedStructure && (
-                              <div
-                                className="p-4 rounded-xl"
-                                style={{
-                                  backgroundColor: "var(--color-surface-hover)",
-                                  border: "1px solid var(--color-border)",
-                                }}
-                              >
-                                <div
-                                  className="text-xs font-semibold mb-2"
-                                  style={{ color: "var(--color-text-muted)" }}
-                                >
-                                  Recommended Structure
-                                </div>
-                                <div
-                                  className="text-sm break-words leading-7"
-                                  style={{
-                                    color: "var(--color-text-secondary)",
-                                  }}
-                                >
-                                  <ReactMarkdown>
-                                    {research.recommendedStructure}
-                                  </ReactMarkdown>
-                                </div>
-                              </div>
-                            )}
-
-                            {research.yourAngleStrength && (
-                              <div
-                                className="p-4 rounded-xl"
-                                style={{
-                                  backgroundColor: "var(--color-surface-hover)",
-                                  border: "1px solid var(--color-border)",
-                                }}
-                              >
-                                <div
-                                  className="text-xs font-semibold mb-2"
-                                  style={{ color: "var(--color-text-muted)" }}
-                                >
-                                  Your Angle Strength
-                                </div>
-                                <div
-                                  className="text-sm break-words leading-7"
-                                  style={{
-                                    color: "var(--color-text-secondary)",
-                                  }}
-                                >
-                                  <ReactMarkdown>
-                                    {research.yourAngleStrength}
-                                  </ReactMarkdown>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div
-                            className="p-4 rounded-xl text-center"
-                            style={{
-                              backgroundColor: "var(--color-surface-hover)",
-                              border: "1px solid var(--color-border)",
-                              color: "var(--color-text-muted)",
-                            }}
-                          >
-                            <div className="text-sm mb-3">
-                              No research data available yet
-                            </div>
-                            <button
-                              onClick={() => handleGenerateResearch(idea)}
-                              disabled={researchingIdeaId === idea.ideaId}
-                              className="inline-flex items-center gap-2 px-3 py-2 text-xs rounded-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                              style={{
-                                backgroundColor: "var(--color-surface)",
-                                color: "var(--color-text)",
-                                border: "1px solid var(--color-border)",
-                              }}
-                            >
-                              <FiSearch className="w-3 h-3" />
-                              {researchingIdeaId === idea.ideaId
-                                ? "Generating research..."
-                                : "Generate research"}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Footer Status Badge */}
-                  <div
-                    className="px-5 py-3"
-                    style={{
-                      backgroundColor: "var(--color-surface-hover)",
-                      borderTop: "1px solid var(--color-border)",
-                    }}
-                  >
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span
-                        className="text-xs font-semibold flex items-center gap-1.5"
-                        style={{ color: "var(--color-text)" }}
-                      >
-                        <FiCheck className="w-4 h-4" />
-                        {idea.hasContent ? "Content Generated" : "Ready for Phase 2"}
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default" className="text-[10px]">
+                          {safeText(idea.platform) || "linkedin"}
+                        </Badge>
+                        <Badge variant="secondary" className="text-[10px]">
+                          {safeText(idea.contentType) || "post"}
+                        </Badge>
+                      </div>
+                      <span className={`text-lg font-extrabold ${getScoreColor(Number(idea.scores?.overall || 0))}`}>
+                        {formatScore(idea.scores?.overall)}
                       </span>
-                      <button
-                        onClick={() => handleGenerateContent(idea)}
-                        disabled={generatingContentIdeaId === idea.ideaId || idea.hasContent}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                          backgroundColor: idea.hasContent ? "var(--color-surface-hover)" : "var(--color-text)",
-                          color: idea.hasContent ? "var(--color-text-muted)" : "var(--color-background)",
-                          border: idea.hasContent ? "1px solid var(--color-border)" : "none",
-                        }}
-                        title={idea.hasContent ? "Content already generated for this idea" : "Generate content from this idea"}
-                      >
-                        <FiEdit3 className="w-3 h-3" />
-                        {generatingContentIdeaId === idea.ideaId
-                          ? "Generating..."
-                          : idea.hasContent
-                          ? "Already Generated"
-                          : "Generate Content"}
-                      </button>
                     </div>
-                    <span
-                      className="text-xs opacity-50"
-                      style={{ color: "var(--color-text-muted)" }}
+
+                    <h3 className="text-sm sm:text-base font-bold text-zinc-100 leading-snug">
+                      {safeText(idea.topic)}
+                    </h3>
+
+                    {idea.hookIdea && (
+                      <div className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80 text-xs text-zinc-300">
+                        <span className="font-semibold text-amber-400">Hook: </span>
+                        <MarkdownRenderer content={safeText(idea.hookIdea)} className="inline" />
+                      </div>
+                    )}
+
+                    {idea.angle && (
+                      <div className="text-xs text-zinc-400">
+                        <span className="font-semibold text-zinc-300">Angle: </span>
+                        <MarkdownRenderer content={safeText(idea.angle)} className="inline" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Expanded Research Details */}
+                  {isExpanded && (
+                    <div className="pt-4 border-t border-zinc-800/80 space-y-3.5">
+                      {hasResearch ? (
+                        <div className="space-y-3 text-xs">
+                          {research.audiencePainPoints.length > 0 && (
+                            <div className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-1">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                Audience Pain Points
+                              </p>
+                              <ul className="list-disc pl-4 space-y-1 text-zinc-300">
+                                {research.audiencePainPoints.map((pt, idx) => (
+                                  <li key={idx}>
+                                    <MarkdownRenderer content={pt} />
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {research.keyPoints.length > 0 && (
+                            <div className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-1">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                Key Insights
+                              </p>
+                              <ul className="list-disc pl-4 space-y-1 text-zinc-300">
+                                {research.keyPoints.map((kp, idx) => (
+                                  <li key={idx}>
+                                    <MarkdownRenderer content={kp} />
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {research.recommendedStructure && (
+                            <div className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-1">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                Recommended Structure
+                              </p>
+                              <MarkdownRenderer content={research.recommendedStructure} />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/60 text-center space-y-2">
+                          <p className="text-xs text-zinc-400">No enriched research data yet.</p>
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateResearch(idea)}
+                            disabled={researchingIdeaId === idea.ideaId}
+                            className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold"
+                          >
+                            {researchingIdeaId === idea.ideaId ? "Enriching..." : "Enrich Research"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions & Card Footer */}
+                  <div className="space-y-3 pt-3 border-t border-zinc-800/60">
+                    <div className="flex items-center justify-between text-xs text-zinc-500">
+                      <span>Created {formatDate(idea.createdAt)}</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyIdea(idea)}
+                          className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+                          title="Copy Idea"
+                        >
+                          {copiedIdeaId === idea.ideaId ? <FiCheck className="w-3.5 h-3.5 text-emerald-400" /> : <FiCopy className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedIdeaId(isExpanded ? null : idea.ideaId)}
+                          className="px-2.5 py-1 rounded-lg bg-zinc-800/60 hover:bg-zinc-800 text-zinc-300 text-xs font-medium transition-colors"
+                        >
+                          {isExpanded ? "Hide Details" : "View Details"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateContent(idea)}
+                      disabled={generatingContentIdeaId === idea.ideaId || idea.hasContent}
+                      className="w-full py-2 px-3.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold flex items-center justify-center gap-2 transition-all transform hover:scale-[1.01] shadow-sm disabled:opacity-50"
                     >
-                      ID: {idea.ideaId.slice(0, 8)}
-                    </span>
+                      <FiEdit3 className="w-3.5 h-3.5" />
+                      <span>
+                        {generatingContentIdeaId === idea.ideaId
+                          ? "Drafting Content..."
+                          : idea.hasContent
+                          ? "Content Generated (View in Library)"
+                          : "Generate Content From Idea"}
+                      </span>
+                    </button>
                   </div>
                 </div>
               );
             })}
-          </div>
-        )}
-
-        {/* Stats Footer */}
-        {!loading && !error && ideas.length > 0 && (
-          <div
-            className="mt-8 rounded-xl p-6"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <div className="grid md:grid-cols-3 gap-8 text-center">
-              <div>
-                <div className="text-3xl font-bold text-indigo-600 mb-1">
-                  {ideas.length}
-                </div>
-                <div className="text-sm text-gray-600">Total Ideas</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-green-600 mb-1">
-                  {ideas.filter((idea) => idea.scores?.overall >= 8).length}
-                </div>
-                <div className="text-sm text-gray-600">High Scoring (8+)</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-purple-600 mb-1">
-                  {new Set(ideas.map((idea) => idea.platform)).size}
-                </div>
-                <div className="text-sm text-gray-600">Platforms</div>
-              </div>
-            </div>
           </div>
         )}
       </div>

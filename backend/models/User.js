@@ -84,8 +84,8 @@ class User {
       emailVerified: additionalData.emailVerified || false,
       locale: additionalData.locale || null,
       authProviders,
-      role: additionalData.role || "user",
-      status: additionalData.status || "active",
+      role: "user",
+      status: "active",
       loginHistory: [
         {
           timestamp: now,
@@ -149,7 +149,11 @@ class User {
     };
 
     // Check if provider already exists
-    const exists = this.authProviders.some((p) => p.type === providerType);
+    const exists = this.authProviders.some(
+      (p) =>
+        p.type === providerType &&
+        (p.providerId || p.providerUserId) === providerId,
+    );
     if (!exists) {
       this.authProviders.push(newProvider);
     }

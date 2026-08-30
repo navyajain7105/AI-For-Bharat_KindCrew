@@ -11,6 +11,7 @@ import {
   PublishingSlice,
   createPublishingSlice,
 } from "./slice/publishingSlice";
+import { registerTokenSync } from "@/lib/apiClient";
 
 type AppState = AuthSlice &
   CreatorProfileSlice &
@@ -28,11 +29,9 @@ export const useAppStore = create<AppState>()(
       ...createContentSlice(...args),
     }),
     {
-      name: "kindcrew-app-storage",
+      name: "kindcrew-app-storage-v2",
       partialize: (state) => ({
-        token: state.token,
         userInfo: state.userInfo,
-        authReady: state.authReady,
         creatorProfile: state.creatorProfile,
         hasProfile: state.hasProfile,
         profileChecked: state.profileChecked,
@@ -44,6 +43,15 @@ export const useAppStore = create<AppState>()(
     },
   ),
 );
+
+// Register the token-sync callback so apiClient.ts can update the Zustand
+// `token` field after a silent refresh, without creating a circular import.
+// This runs once when the module is first imported (client side).
+if (typeof window !== "undefined") {
+  registerTokenSync((newToken) => {
+    useAppStore.setState({ token: newToken });
+  });
+}
 
 export const useAuthStore = <T>(selector: (state: AppState) => T) =>
   useAppStore(selector);

@@ -1,0 +1,107 @@
+import express from "express";
+import cors from "cors";
+import session from "express-session";
+import errorHandler from "../middleware/errorHandler.js";
+import authRoutes from "../routes/authRoutes.js";
+import creatorProfileRoutes from "../routes/creatorProfileRoutes.js";
+import creatorProfileSessionRoutes from "./modules/creator-profile/creatorProfile.routes.js";
+import publishingRoutes from "../routes/publishingRoutes.js";
+import bedrockRoutes from "../routes/bedrockRoutes.js";
+import ideationRoutes from "../routes/ideationRoutes.js";
+import contentRoutes from "../routes/contentRoutes.js";
+import { getAllUsersAndProfiles } from "../controllers/creatorProfileController.js";
+
+const app = express();
+
+// Render/other managed hosts sit behind a reverse proxy.
+// Trust proxy so secure session cookies are set correctly in production.
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
+// CORS configuration
+const configuredOrigins = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin: configuredOrigins.length > 0 ? configuredOrigins : true,
+  credentials: true,
+  optionsSuccessStatus: 200,
+};
+
+// Middleware
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Session middleware
+app.use(
+  session({
+    secret:
+      process.env.SESSION_SECRET ||
+      "kindcrew-session-secret-change-in-production",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  }),
+);
+
+// Health check route
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    message: "Server is healthy",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Root route
+app.get("/", (req, res) => {
+  res.status(200).json({
+    message: "Welcome to AI-For-Bharat KindCrew API",
+    version: "1.0.0",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Test route alias to list all users and profiles (disabled in production by controller)
+app.get("/api/test/all-data", getAllUsersAndProfiles);
+
+// Auth routes
+app.use("/api/auth", authRoutes);
+
+// Creator Profile routes
+app.use("/api", creatorProfileRoutes);
+app.use("/api", creatorProfileSessionRoutes);
+
+// Publishing routes (scheduling / posting)
+app.use("/api", publishingRoutes);
+
+// Bedrock AI routes
+app.use("/api/bedrock", bedrockRoutes);
+
+// Phase 1: Ideation & Research routes
+app.use("/api/ideation", ideationRoutes);
+
+// Phase 2: Content Generation routes
+app.use("/api/content", contentRoutes);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    message: "Route not found",
+    path: req.path,
+  });
+});
+
+// Error handler
+app.use(errorHandler);
+
+export default app;

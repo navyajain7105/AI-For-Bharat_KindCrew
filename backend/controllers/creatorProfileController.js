@@ -6,6 +6,18 @@
 
 import creatorProfileService from "../services/creatorProfile.service.js";
 
+const ensureProfileOwner = async (req, res) => {
+  const profile = await creatorProfileService.getProfile(req.params.creatorId);
+  if (profile.userId !== req.userId) {
+    res.status(403).json({
+      success: false,
+      error: "You do not have access to this creator profile",
+    });
+    return false;
+  }
+  return true;
+};
+
 /**
  * Create a new creator profile
  * POST /api/creator-profiles
@@ -151,6 +163,8 @@ export const updateProfile = async (req, res) => {
       });
     }
 
+    if (!(await ensureProfileOwner(req, res))) return;
+
     if (!updateData || Object.keys(updateData).length === 0) {
       return res.status(400).json({
         success: false,
@@ -204,6 +218,8 @@ export const addCompetitor = async (req, res) => {
       });
     }
 
+    if (!(await ensureProfileOwner(req, res))) return;
+
     if (!competitorId || !name) {
       return res.status(400).json({
         success: false,
@@ -247,6 +263,8 @@ export const removeCompetitor = async (req, res) => {
       });
     }
 
+    if (!(await ensureProfileOwner(req, res))) return;
+
     const updated = await creatorProfileService.removeCompetitor(
       creatorId,
       competitorId,
@@ -281,6 +299,8 @@ export const updatePlatforms = async (req, res) => {
         error: "Creator ID is required",
       });
     }
+
+    if (!(await ensureProfileOwner(req, res))) return;
 
     if (!platforms || !Array.isArray(platforms)) {
       return res.status(400).json({
@@ -323,6 +343,8 @@ export const completeOnboarding = async (req, res) => {
       });
     }
 
+    if (!(await ensureProfileOwner(req, res))) return;
+
     const updated = await creatorProfileService.completeOnboarding(creatorId);
 
     res.status(200).json({
@@ -353,6 +375,8 @@ export const deleteProfile = async (req, res) => {
         error: "Creator ID is required",
       });
     }
+
+    if (!(await ensureProfileOwner(req, res))) return;
 
     await creatorProfileService.deleteProfile(creatorId);
 

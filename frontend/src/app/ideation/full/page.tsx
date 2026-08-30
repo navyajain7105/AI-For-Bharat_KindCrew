@@ -5,21 +5,22 @@ import { useRouter } from "next/navigation";
 import { evaluateIdea, IdeaEvaluation } from "@/lib/api/ideation";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { useAuth } from "@/hooks/useAuth";
+import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { Badge } from "@/components/ui/Badge";
 import {
   FiArrowLeft,
   FiArrowRight,
   FiCheckCircle,
   FiTarget,
+  FiAlertCircle,
+  FiRefreshCw,
 } from "react-icons/fi";
 
 function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
+  if (error instanceof Error) return error.message;
   return "Something went wrong";
 }
 
-// Helper to safely format scores
 const formatScore = (score: number | string | undefined): string => {
   if (typeof score === "number") return score.toFixed(1);
   if (typeof score === "string") return parseFloat(score).toFixed(1);
@@ -55,7 +56,6 @@ export default function FullIdeaPage() {
 
     try {
       const result = await evaluateIdea(token, formData);
-
       if (result.success && result.evaluation) {
         setEvaluation(result.evaluation);
       } else {
@@ -87,86 +87,62 @@ export default function FullIdeaPage() {
     router.push("/ideation/research");
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return "text-green-600 bg-green-50";
-    if (score >= 6) return "text-yellow-600 bg-yellow-50";
-    return "text-red-600 bg-red-50";
-  };
-
-  const getScoreLabel = (score: number) => {
-    if (score >= 8) return "Excellent";
-    if (score >= 6) return "Good";
-    return "Needs Work";
+  const getScoreBadge = (score: number) => {
+    if (score >= 8) return { color: "text-emerald-400", badge: "bg-emerald-950/40 text-emerald-300 border-emerald-800/40", label: "High Viral Potential" };
+    if (score >= 6) return { color: "text-amber-400", badge: "bg-amber-950/40 text-amber-300 border-amber-800/40", label: "Good Concept" };
+    return { color: "text-rose-400", badge: "bg-rose-950/40 text-rose-300 border-rose-800/40", label: "Needs Optimization" };
   };
 
   return (
     <AuthenticatedLayout>
-      <div className="w-full max-w-5xl mx-auto overflow-x-hidden">
-        <div className="mb-8">
+      <div className="max-w-5xl mx-auto space-y-6 pb-12">
+        {/* Page Header */}
+        <div className="space-y-2">
           <button
+            type="button"
             onClick={() => router.push("/ideation")}
-            className="mb-4 flex items-center gap-2"
-            style={{ color: "var(--color-text-secondary)" }}
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
           >
-            <FiArrowLeft className="w-4 h-4" />
-            Back
+            <FiArrowLeft className="w-3.5 h-3.5" />
+            Back to Ideation Hub
           </button>
-          <h1
-            className="text-3xl font-bold mb-2"
-            style={{ color: "var(--color-text)" }}
-          >
-            Evaluate Your Full Idea
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">
+              Pathway 3 — Concept Diagnostic & Evaluation
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            Evaluate Your Content Idea
           </h1>
-          <p style={{ color: "var(--color-text-secondary)" }}>
-            Get AI scoring and optimization suggestions
+          <p className="text-xs sm:text-sm text-zinc-400">
+            Run an AI diagnostic to score virality, clarity, and competitive saturation with actionable hooks.
           </p>
         </div>
 
         {/* Input Form */}
         {!evaluation && (
-          <div
-            className="rounded-xl p-8 mb-8"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <div className="mb-6">
-              <label
-                className="block text-sm font-medium mb-2"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Your Content Idea
+          <div className="p-6 sm:p-8 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm shadow-sm space-y-6">
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                Your Content Idea or Pitch
               </label>
               <textarea
                 value={formData.idea}
                 onChange={(e) =>
                   setFormData({ ...formData, idea: e.target.value })
                 }
-                className="w-full px-4 py-3 rounded-lg"
-                style={{
-                  border: "1px solid var(--color-border)",
-                  backgroundColor: "var(--color-background)",
-                  color: "var(--color-text)",
-                }}
+                className="w-full px-4 py-3 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 text-sm focus:outline-none focus:border-zinc-600 transition-colors placeholder:text-zinc-600 resize-y min-h-[120px]"
                 rows={4}
                 placeholder="e.g., Top 5 AI tools founders can use to automate repetitive work and save 10 hours per week"
               />
-              <p
-                className="mt-2 text-xs"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                Be as specific as possible. Include your target outcome or
-                benefit.
+              <p className="text-[11px] text-zinc-500">
+                Be specific about your topic, core thesis, and primary takeaway.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--color-text-secondary)" }}
-                >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
                   Target Audience
                 </label>
                 <input
@@ -175,22 +151,14 @@ export default function FullIdeaPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, audience: e.target.value })
                   }
-                  className="w-full px-4 py-2 rounded-lg"
-                  style={{
-                    border: "1px solid var(--color-border)",
-                    backgroundColor: "var(--color-background)",
-                    color: "var(--color-text)",
-                  }}
-                  placeholder="e.g., startup founders"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 text-sm focus:outline-none focus:border-zinc-600 transition-colors"
+                  placeholder="e.g., startup founders, indie hackers"
                 />
               </div>
 
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--color-text-secondary)" }}
-                >
-                  Platform
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                  Target Platform
                 </label>
                 <select
                   title="Platform"
@@ -198,15 +166,10 @@ export default function FullIdeaPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, platform: e.target.value })
                   }
-                  className="w-full px-4 py-2 rounded-lg"
-                  style={{
-                    border: "1px solid var(--color-border)",
-                    backgroundColor: "var(--color-background)",
-                    color: "var(--color-text)",
-                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 text-sm focus:outline-none focus:border-zinc-600 transition-colors"
                 >
                   <option value="linkedin">LinkedIn</option>
-                  <option value="twitter">Twitter</option>
+                  <option value="twitter">Twitter / X</option>
                   <option value="instagram">Instagram</option>
                   <option value="youtube">YouTube</option>
                 </select>
@@ -214,116 +177,76 @@ export default function FullIdeaPage() {
             </div>
 
             <button
+              type="button"
               onClick={handleEvaluate}
-              disabled={loading}
-              className="w-full py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
-              style={{
-                backgroundColor: "var(--color-text)",
-                color: "var(--color-background)",
-              }}
+              disabled={loading || !formData.idea.trim()}
+              className="w-full py-3 px-6 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs sm:text-sm font-semibold transition-all transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
             >
               <FiTarget className="w-4 h-4" />
-              {loading ? "Evaluating Your Idea..." : "Evaluate Idea"}
+              {loading ? "Running AI Evaluation Diagnostics..." : "Evaluate Idea"}
             </button>
           </div>
         )}
 
-        {/* Error */}
+        {/* Error Alert */}
         {error && (
-          <div
-            className="px-6 py-4 rounded-lg mb-8"
-            style={{ border: "1px solid #7f1d1d", color: "#fca5a5" }}
-          >
-            {error}
+          <div className="p-4 rounded-xl border border-rose-800/40 bg-rose-950/30 text-rose-300 text-xs sm:text-sm flex items-center gap-2.5">
+            <FiAlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
         {/* Evaluation Results */}
         {evaluation && (
           <div className="space-y-6">
-            {/* Overall Score */}
-            <div
-              className="rounded-xl p-8 text-center"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              <h2
-                className="text-lg mb-2"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Overall Score
-              </h2>
-              <div
-                className={`text-6xl font-bold mb-2 ${getScoreColor(evaluation.scores.overall).split(" ")[0]}`}
-              >
+            {/* Overall Score Banner */}
+            <div className="p-6 sm:p-8 rounded-2xl border border-zinc-800 bg-zinc-900/40 text-center space-y-3">
+              <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                Evaluation Scorecard
+              </span>
+              <div className={`text-6xl font-extrabold tracking-tight ${getScoreBadge(evaluation.scores.overall).color}`}>
                 {formatScore(evaluation.scores.overall)}
               </div>
-              <div
-                className={`inline-block px-4 py-2 rounded-full font-semibold ${getScoreColor(evaluation.scores.overall)}`}
-              >
-                {getScoreLabel(evaluation.scores.overall)}
+              <div className="inline-flex">
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getScoreBadge(evaluation.scores.overall).badge}`}>
+                  {getScoreBadge(evaluation.scores.overall).label}
+                </span>
               </div>
             </div>
 
-            {/* Score Breakdown */}
-            <div
-              className="rounded-xl p-8"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              <h3
-                className="text-xl font-semibold mb-6"
-                style={{ color: "var(--color-text)" }}
-              >
-                Score Breakdown
-              </h3>
-              <div className="grid md:grid-cols-3 gap-6">
+            {/* Score Breakdown Matrix */}
+            <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-4">
+              <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+                Metric Diagnostics
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
                   {
-                    label: "Virality",
+                    label: "Virality Potential",
                     score: evaluation.scores.virality,
-                    desc: "Shareability potential",
+                    desc: "Estimated audience shareability",
                   },
                   {
-                    label: "Clarity",
+                    label: "Clarity & Resonance",
                     score: evaluation.scores.clarity,
-                    desc: "Idea clarity & focus",
+                    desc: "Core thesis crispness",
                   },
                   {
-                    label: "Competition",
+                    label: "Competitive Edge",
                     score: evaluation.scores.competition,
-                    desc: "Market saturation",
+                    desc: "Differentiation vs saturated niches",
                   },
                 ].map((item) => (
-                  <div key={item.label} className="text-center">
-                    <div
-                      className="text-sm mb-1"
-                      style={{ color: "var(--color-text-secondary)" }}
-                    >
-                      {item.label}
-                    </div>
-                    <div
-                      className={`text-4xl font-bold mb-1 ${getScoreColor(item.score).split(" ")[0]}`}
-                    >
+                  <div key={item.label} className="p-4 rounded-xl bg-zinc-950/70 border border-zinc-800/80 space-y-2 text-center">
+                    <p className="text-xs font-semibold text-zinc-400">{item.label}</p>
+                    <p className={`text-3xl font-extrabold ${getScoreBadge(item.score).color}`}>
                       {formatScore(item.score)}
-                    </div>
-                    <div
-                      className="text-xs"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      {item.desc}
-                    </div>
-                    <div
-                      className="mt-2 rounded-full h-2"
-                      style={{ backgroundColor: "var(--color-border)" }}
-                    >
+                    </p>
+                    <p className="text-[11px] text-zinc-500">{item.desc}</p>
+                    <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
                       <div
-                        className={`h-2 rounded-full ${getScoreColor(item.score).split(" ")[0].replace("text", "bg")}`}
-                        style={{ width: `${item.score * 10}%` }}
+                        className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, Math.max(0, item.score * 10))}%` }}
                       />
                     </div>
                   </div>
@@ -331,86 +254,52 @@ export default function FullIdeaPage() {
               </div>
             </div>
 
-            {/* Improved Version */}
-            <div
-              className="rounded-xl p-8"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              <h3
-                className="text-xl font-semibold mb-4"
-                style={{ color: "var(--color-text)" }}
-              >
-                Improved Version
-              </h3>
-              <div
-                className="p-6 rounded-lg mb-4"
-                style={{
-                  backgroundColor: "var(--color-surface-hover)",
-                  borderLeft: "4px solid var(--color-text)",
-                }}
-              >
-                <h4
-                  className="font-semibold mb-2"
-                  style={{ color: "var(--color-text)" }}
-                >
-                  {evaluation.improvedTitle || formData.idea}
-                </h4>
-                {evaluation.suggestedHook && (
-                  <p
-                    className="text-sm flex items-center gap-2"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    <FiTarget className="w-4 h-4" />
-                    <span className="font-medium">Hook:</span>{" "}
-                    {evaluation.suggestedHook}
-                  </p>
-                )}
+            {/* Improved Version & Hook */}
+            <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+                  AI-Optimized Title & Hook
+                </h2>
+                <div className="flex items-center gap-2">
+                  <Badge variant="default" className="text-[10px]">{formData.platform}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{evaluation.format || "post"}</Badge>
+                </div>
               </div>
-              <div
-                className="flex items-center gap-2 text-sm"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                <span
-                  className="px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "var(--color-surface-hover)" }}
-                >
-                  {evaluation.format || "post"}
-                </span>
-                <span
-                  className="px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "var(--color-surface-hover)" }}
-                >
-                  {formData.platform}
-                </span>
+
+              <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-3">
+                <div className="text-sm font-bold text-zinc-100">
+                  <MarkdownRenderer content={evaluation.improvedTitle || formData.idea} />
+                </div>
+                {evaluation.suggestedHook && (
+                  <div className="p-3 rounded-lg bg-zinc-900/80 border border-zinc-800/80 flex items-start gap-2.5">
+                    <FiTarget className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="text-xs text-zinc-300 flex-1">
+                      <span className="font-semibold text-amber-400">Suggested Hook: </span>
+                      <MarkdownRenderer content={evaluation.suggestedHook} className="inline" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
               <button
+                type="button"
                 onClick={() => setEvaluation(null)}
-                className="flex-1 py-3 px-6 rounded-lg font-medium transition-colors"
-                style={{
-                  backgroundColor: "var(--color-surface-hover)",
-                  color: "var(--color-text)",
-                }}
+                className="w-full sm:w-1/2 py-2.5 px-4 rounded-xl border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-200 text-xs font-semibold transition-all flex items-center justify-center gap-2 shadow-sm"
               >
-                Try Different Idea
+                <FiRefreshCw className="w-3.5 h-3.5" />
+                Evaluate Another Concept
               </button>
               <button
+                type="button"
                 onClick={handleProceed}
-                className="flex-1 py-3 px-6 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                style={{
-                  backgroundColor: "var(--color-text)",
-                  color: "var(--color-background)",
-                }}
+                className="w-full sm:w-1/2 py-2.5 px-4 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold transition-all transform hover:scale-[1.01] flex items-center justify-center gap-2 shadow-sm"
               >
-                <FiCheckCircle className="w-4 h-4" />
-                Proceed to Research
-                <FiArrowRight className="w-4 h-4" />
+                <FiCheckCircle className="w-4 h-4 text-emerald-600" />
+                <span>Proceed to Research & Drafting</span>
+                <FiArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

@@ -91,6 +91,7 @@ export const deleteEvent = async (req, res) => {
  * Uses Bedrock AI + optional creator profile context
  */
 import dynamoDBService from "../services/dynamodb.service.js";
+import { buildCreatorContext } from "../src/modules/creator-profile/creatorContext.js";
 
 export const suggestTime = async (req, res) => {
   try {
@@ -99,12 +100,10 @@ export const suggestTime = async (req, res) => {
     try {
       const profile = await dynamoDBService.getCreatorProfileByUserId(userId);
       if (profile) {
+        const ctx = buildCreatorContext(profile);
         profileCtx = {
-          audience:
-            profile.audience?.targetAudience ||
-            profile.niche?.primary ||
-            "general",
-          creatorLevel: profile.creatorLevel || "beginner",
+          audience: ctx.audience,
+          creatorLevel: ctx.creatorLevel,
         };
       }
     } catch (_) {

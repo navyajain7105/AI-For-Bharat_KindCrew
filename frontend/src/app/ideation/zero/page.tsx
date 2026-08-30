@@ -1,17 +1,22 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useIdeation } from "@/hooks/useIdeation";
+import { useCreatorProfile } from "@/hooks/useCreatorProfile";
+import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { Badge } from "@/components/ui/Badge";
 import {
   FiArrowLeft,
   FiArrowRight,
   FiCompass,
   FiRefreshCw,
+  FiAlertCircle,
+  FiLayers,
 } from "react-icons/fi";
 
-// Helper to safely format scores
 const formatScore = (score: number | string | undefined): string => {
   if (typeof score === "number") return score.toFixed(1);
   if (typeof score === "string") return parseFloat(score).toFixed(1);
@@ -20,7 +25,8 @@ const formatScore = (score: number | string | undefined): string => {
 
 export default function ZeroIdeaPage() {
   const router = useRouter();
-  const { userInfo, token } = useAuth();
+  const { userInfo, token, authReady } = useAuth();
+  const authenticated = !!token && !!userInfo;
   const {
     ideas,
     selectedIdea,
@@ -32,6 +38,29 @@ export default function ZeroIdeaPage() {
     selectIdea,
     clearIdeas,
   } = useIdeation();
+
+  const { creatorProfile, fetchProfile, profileChecked, profileLoading } = useCreatorProfile();
+
+  useEffect(() => {
+    if (authReady && token && authenticated && !profileChecked && !profileLoading) {
+      fetchProfile(token);
+    }
+  }, [authReady, token, authenticated, profileChecked, profileLoading, fetchProfile]);
+
+  useEffect(() => {
+    if (creatorProfile) {
+      const firstPlatform = Array.isArray(creatorProfile.platforms) && creatorProfile.platforms.length > 0
+        ? creatorProfile.platforms[0].name
+        : "linkedin";
+
+      setProfile({
+        niche: creatorProfile.niche?.primary || "",
+        audience: creatorProfile.targetAudience || "",
+        platforms: [firstPlatform],
+        goal: creatorProfile.goals?.primaryGoal || "growth",
+      });
+    }
+  }, [creatorProfile, setProfile]);
 
   const renderValue = (val: any) => {
     if (val == null) return "";
@@ -46,110 +75,84 @@ export default function ZeroIdeaPage() {
   };
 
   const handleGenerate = async () => {
-    if (!userInfo?.userId || !token) {
-      return;
-    }
-
-    const result = await generateIdeas(token, profile);
-    if (!result) {
-      return;
-    }
+    if (!userInfo?.userId) return;
+    await generateIdeas(userInfo.userId, profile);
   };
 
-  const handleSelectIdea = (ideaItem: typeof ideas[0]) => {
-    selectIdea(ideaItem);
-    // Store in session storage for next step
+  const handleSelectIdea = (idea: (typeof ideas)[0]) => {
+    const rawPlatform = renderValue(idea.platform) || profile.platforms[0] || "linkedin";
+    const rawFormat = renderValue(idea.format) || "post";
+    const rawTitle = renderValue(idea.title);
+    const rawAngle = renderValue(idea.angle) || renderValue(idea.description);
+
     sessionStorage.setItem(
       "selectedIdea",
       JSON.stringify({
-        topic: ideaItem.title,
-        angle: ideaItem.angle,
-        platform: ideaItem.platform,
-        contentType: ideaItem.format,
+        topic: rawTitle,
+        angle: rawAngle,
+        platform: rawPlatform,
+        contentType: rawFormat,
         targetAudience: profile.audience,
-        hookIdea: ideaItem.hook || ideaItem.hookIdea || "",
-        scores: ideaItem.scores,
+        scores: idea.scores,
       }),
     );
 
-    // Move to research step
     router.push("/ideation/research");
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 8) return "text-green-600";
-    if (score >= 6) return "text-yellow-600";
-    return "text-red-600";
+    if (score >= 8) return "text-emerald-400";
+    if (score >= 6) return "text-amber-400";
+    return "text-rose-400";
   };
 
   return (
     <AuthenticatedLayout>
-      <div className="w-full max-w-7xl mx-auto overflow-x-hidden">
-        <div className="mb-8">
+      <div className="max-w-5xl mx-auto space-y-6 pb-12">
+        {/* Page Header */}
+        <div className="space-y-2">
           <button
+            type="button"
             onClick={() => router.push("/ideation")}
-            className="mb-4 flex items-center gap-2"
-            style={{ color: "var(--color-text-secondary)" }}
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
           >
-            <FiArrowLeft className="w-4 h-4" />
-            Back
+            <FiArrowLeft className="w-3.5 h-3.5" />
+            Back to Ideation Hub
           </button>
-          <h1
-            className="text-3xl font-bold mb-2"
-            style={{ color: "var(--color-text)" }}
-          >
-            Zero Idea Generator
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">
+              Pathway 1 — Zero Concept Generation
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            Generate 10 Viral Ideas From Scratch
           </h1>
-          <p style={{ color: "var(--color-text-secondary)" }}>
-            AI will generate 10 high-quality content ideas for you
+          <p className="text-xs sm:text-sm text-zinc-400">
+            Let Bedrock analyze your creator niche, audience persona, and viral patterns to curate 10 structured concepts.
           </p>
         </div>
 
-        {/* Profile Form */}
+        {/* Input Form */}
         {ideas.length === 0 && (
-          <div
-            className="rounded-xl p-8 mb-8"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <h2
-              className="text-xl font-semibold mb-6"
-              style={{ color: "var(--color-text)" }}
-            >
-              Your Profile
-            </h2>
+          <div className="p-6 sm:p-8 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm shadow-sm space-y-6">
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                Primary Niche or Industry
+              </label>
+              <input
+                type="text"
+                value={profile.niche}
+                onChange={(e) =>
+                  setProfile({ ...profile, niche: e.target.value })
+                }
+                className="w-full px-4 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 text-sm focus:outline-none focus:border-zinc-600 transition-colors"
+                placeholder="e.g., AI Engineering, SaaS Growth, High-Performance Mindset"
+              />
+            </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--color-text-secondary)" }}
-                >
-                  Niche
-                </label>
-                <input
-                  type="text"
-                  value={profile.niche}
-                  onChange={(e) =>
-                    setProfile({ ...profile, niche: e.target.value })
-                  }
-                  className="w-full px-4 py-2 rounded-lg"
-                  style={{
-                    border: "1px solid var(--color-border)",
-                    backgroundColor: "var(--color-background)",
-                    color: "var(--color-text)",
-                  }}
-                  placeholder="e.g., AI productivity"
-                />
-              </div>
-
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--color-text-secondary)" }}
-                >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
                   Target Audience
                 </label>
                 <input
@@ -158,49 +161,33 @@ export default function ZeroIdeaPage() {
                   onChange={(e) =>
                     setProfile({ ...profile, audience: e.target.value })
                   }
-                  className="w-full px-4 py-2 rounded-lg"
-                  style={{
-                    border: "1px solid var(--color-border)",
-                    backgroundColor: "var(--color-background)",
-                    color: "var(--color-text)",
-                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 text-sm focus:outline-none focus:border-zinc-600 transition-colors"
                   placeholder="e.g., startup founders"
                 />
               </div>
 
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--color-text-secondary)" }}
-                >
-                  Platform
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                  Distribution Platform
                 </label>
                 <select
                   title="Platform"
-                  value={profile.platforms[0]}
+                  value={profile.platforms[0] || "linkedin"}
                   onChange={(e) =>
                     setProfile({ ...profile, platforms: [e.target.value] })
                   }
-                  className="w-full px-4 py-2 rounded-lg"
-                  style={{
-                    border: "1px solid var(--color-border)",
-                    backgroundColor: "var(--color-background)",
-                    color: "var(--color-text)",
-                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 text-sm focus:outline-none focus:border-zinc-600 transition-colors"
                 >
                   <option value="linkedin">LinkedIn</option>
-                  <option value="twitter">Twitter</option>
+                  <option value="twitter">Twitter / X</option>
                   <option value="instagram">Instagram</option>
                   <option value="youtube">YouTube</option>
                 </select>
               </div>
 
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--color-text-secondary)" }}
-                >
-                  Goal
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                  Primary Objective
                 </label>
                 <select
                   title="Goal"
@@ -208,191 +195,152 @@ export default function ZeroIdeaPage() {
                   onChange={(e) =>
                     setProfile({ ...profile, goal: e.target.value })
                   }
-                  className="w-full px-4 py-2 rounded-lg"
-                  style={{
-                    border: "1px solid var(--color-border)",
-                    backgroundColor: "var(--color-background)",
-                    color: "var(--color-text)",
-                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 text-sm focus:outline-none focus:border-zinc-600 transition-colors"
                 >
-                  <option value="growth">Growth</option>
-                  <option value="engagement">Engagement</option>
+                  <option value="growth">Audience Growth</option>
+                  <option value="engagement">High Engagement</option>
                   <option value="leads">Lead Generation</option>
-                  <option value="education">Education</option>
+                  <option value="education">Authority & Education</option>
                 </select>
               </div>
             </div>
 
             <button
+              type="button"
               onClick={handleGenerate}
-              disabled={loading}
-              className="mt-6 w-full py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
-              style={{
-                backgroundColor: "var(--color-text)",
-                color: "var(--color-background)",
-              }}
+              disabled={loading || !profile.niche.trim()}
+              className="w-full py-3 px-6 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs sm:text-sm font-semibold transition-all transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
             >
               <FiCompass className="w-4 h-4" />
-              {loading ? "Generating Ideas..." : "Generate 10 Ideas"}
+              {loading ? "Synthesizing 10 Viral Concepts..." : "Generate 10 Viral Concepts"}
             </button>
           </div>
         )}
 
-        {/* Error */}
+        {/* Error Alert */}
         {error && (
-          <div
-            className="px-6 py-4 rounded-lg mb-8"
-            style={{ border: "1px solid #7f1d1d", color: "#fca5a5" }}
-          >
-            {error}
+          <div className="p-4 rounded-xl border border-rose-800/40 bg-rose-950/30 text-rose-300 text-xs sm:text-sm flex items-center gap-2.5">
+            <FiAlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Ideas Grid */}
+        {/* Generated Ideas Grid */}
         {ideas.length > 0 && (
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2
-                className="text-2xl font-bold"
-                style={{ color: "var(--color-text)" }}
-              >
-                {ideas.length} Ideas Generated
-              </h2>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-100">
+                  {ideas.length} Generated Concepts
+                </h2>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Pick the most compelling concept to advance into automated research and drafting.
+                </p>
+              </div>
               <button
+                type="button"
                 onClick={() => clearIdeas()}
-                className="font-medium flex items-center gap-2"
-                style={{ color: "var(--color-text-secondary)" }}
+                className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
               >
-                <FiRefreshCw className="w-4 h-4" />
-                Generate New Ideas
+                <FiRefreshCw className="w-3.5 h-3.5" />
+                Regenerate Concepts
               </button>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              {ideas.map((idea, index) => (
-                <div
-                  key={index}
-                  className={`rounded-xl p-6 cursor-pointer border transition-colors ${
-                    selectedIdea === idea ? "" : ""
-                  }`}
-                  style={{
-                    backgroundColor: "var(--color-surface)",
-                    borderColor:
-                      selectedIdea === idea
-                        ? "var(--color-text)"
-                        : "var(--color-border)",
-                  }}
-                  onClick={() => selectIdea(idea)}
-                >
-                  {/* Score Badge */}
-                  <div className="flex justify-between items-start mb-4">
-                    <span
-                      className="text-xs font-semibold px-3 py-1 rounded-full"
-                      style={{
-                        color: "var(--color-text-secondary)",
-                        backgroundColor: "var(--color-surface-hover)",
-                      }}
-                    >
-                      {renderValue(idea.platform)}
-                    </span>
-                    <span
-                      className={`text-2xl font-bold ${getScoreColor(idea.scores.overall)}`}
-                    >
-                      {idea.scores.overall}
-                    </span>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {ideas.map((idea, index) => {
+                const isSelected = selectedIdea === idea;
+                const platformVal = renderValue(idea.platform);
+                const formatVal = renderValue(idea.format);
+                const angleVal = renderValue(idea.angle);
+                const descVal = renderValue(idea.description);
+                const titleVal = renderValue(idea.title);
 
-                  {/* Title */}
-                  <h3
-                    className="text-lg font-semibold mb-2"
-                    style={{ color: "var(--color-text)" }}
+                return (
+                  <div
+                    key={index}
+                    onClick={() => selectIdea(idea)}
+                    className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-4 ${
+                      isSelected
+                        ? "border-amber-500/60 bg-zinc-950 shadow-md ring-1 ring-amber-500/20"
+                        : "border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-zinc-700"
+                    }`}
                   >
-                    {renderValue(idea.title)}
-                  </h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="default" className="text-[10px]">
+                            {platformVal || "linkedin"}
+                          </Badge>
+                          {formatVal && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {formatVal}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className={`text-lg font-bold ${getScoreColor(Number(idea.scores?.overall || 0))}`}>
+                          {formatScore(idea.scores?.overall)}
+                        </span>
+                      </div>
 
-                  {/* Description */}
-                  <p
-                    className="text-sm mb-4"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    {renderValue(idea.description)}
-                  </p>
+                      <h3 className="text-sm sm:text-base font-bold text-zinc-100 leading-snug">
+                        {titleVal}
+                      </h3>
 
-                  {/* Format & Angle */}
-                  <div className="flex gap-2 mb-4">
-                    <span
-                      className="text-xs px-2 py-1 rounded"
-                      style={{
-                        backgroundColor: "var(--color-surface-hover)",
-                        color: "var(--color-text-secondary)",
-                      }}
-                    >
-                      {renderValue(idea.format)}
-                    </span>
-                    <span
-                      className="text-xs px-2 py-1 rounded"
-                      style={{
-                        backgroundColor: "var(--color-surface-hover)",
-                        color: "var(--color-text-secondary)",
-                      }}
-                    >
-                      {renderValue(idea.angle)}
-                    </span>
+                      {descVal && (
+                        <div className="text-xs text-zinc-300">
+                          <MarkdownRenderer content={descVal} />
+                        </div>
+                      )}
+
+                      {angleVal && (
+                        <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 text-xs text-zinc-300">
+                          <span className="font-semibold text-amber-400">Angle: </span>
+                          <MarkdownRenderer content={angleVal} className="inline" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3 pt-3 border-t border-zinc-800/60">
+                      {/* Sub Scores */}
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="p-1.5 rounded-lg bg-zinc-950/60 border border-zinc-800/60">
+                          <p className="text-[9px] uppercase font-bold text-zinc-500">Virality</p>
+                          <p className={`text-xs font-bold ${getScoreColor(Number(idea.scores?.virality || 0))}`}>
+                            {formatScore(idea.scores?.virality)}
+                          </p>
+                        </div>
+                        <div className="p-1.5 rounded-lg bg-zinc-950/60 border border-zinc-800/60">
+                          <p className="text-[9px] uppercase font-bold text-zinc-500">Clarity</p>
+                          <p className={`text-xs font-bold ${getScoreColor(Number(idea.scores?.clarity || 0))}`}>
+                            {formatScore(idea.scores?.clarity)}
+                          </p>
+                        </div>
+                        <div className="p-1.5 rounded-lg bg-zinc-950/60 border border-zinc-800/60">
+                          <p className="text-[9px] uppercase font-bold text-zinc-500">Comp</p>
+                          <p className={`text-xs font-bold ${getScoreColor(10 - Number(idea.scores?.competition || 0))}`}>
+                            {formatScore(idea.scores?.competition)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectIdea(idea);
+                          }}
+                          className="w-full py-2 px-3.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.01] shadow-sm"
+                        >
+                          <span>Select Concept & Proceed to Research</span>
+                          <FiArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-
-                  {/* Scores */}
-                  <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div>
-                      <div style={{ color: "var(--color-text-muted)" }}>
-                        Virality
-                      </div>
-                      <div
-                        className={`font-semibold ${getScoreColor(idea.scores.virality)}`}
-                      >
-                        {formatScore(idea.scores.virality)}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ color: "var(--color-text-muted)" }}>
-                        Clarity
-                      </div>
-                      <div
-                        className={`font-semibold ${getScoreColor(idea.scores.clarity)}`}
-                      >
-                        {formatScore(idea.scores.clarity)}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ color: "var(--color-text-muted)" }}>
-                        Competition
-                      </div>
-                      <div
-                        className={`font-semibold ${getScoreColor(10 - idea.scores.competition)}`}
-                      >
-                        {formatScore(idea.scores.competition)}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Select Button */}
-                  {selectedIdea === idea && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectIdea(idea);
-                      }}
-                      className="mt-4 w-full py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2"
-                      style={{
-                        backgroundColor: "var(--color-text)",
-                        color: "var(--color-background)",
-                      }}
-                    >
-                      Select This Idea
-                      <FiArrowRight className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

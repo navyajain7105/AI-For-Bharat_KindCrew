@@ -41,10 +41,6 @@ services:
       - key: COGNITO_REDIRECT_URI
         value: https://kindcrew-api.onrender.com/api/auth/callback
 
-      # JWT Secret
-      - key: JWT_SECRET
-        generateValue: true # Render will generate a random secret
-
       # DynamoDB Tables
       - key: DYNAMODB_USERS_TABLE
         value: KindCrew-Users
